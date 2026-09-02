@@ -101,6 +101,8 @@ class List {
             length++;
             return;
         }
+
+        // Part B Solution Function
         void allocateSeat() {
             // temp nodes to perform traversal
             Node* current = head;
