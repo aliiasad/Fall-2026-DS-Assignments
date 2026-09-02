@@ -101,8 +101,77 @@ class List {
             length++;
             return;
         }
+        void allocateSeat() {
+            // temp nodes to perform traversal
+            Node* current = head;
+            Node* prev = nullptr;
+
+            while (current != nullptr)    {
+                // eligibility check simplified
+                bool isEligible = current->creditHoursEnrolled + 3 <= 18;
+
+                if (isEligible) {
+                    if (prev == nullptr) // if head is eligibile
+                        head = current->next;
+                    else    // if random node is eligible
+                        prev->next = current->next;
+                    if (current == tail)    // if tail is eligible
+                        tail = prev;
+                    
+                    
+                    // print message and then delete the node
+                    std::cout << "Seat Allocated to Student " << current->studentID << std::endl;
+                    delete current;
+                    length--;
+                    return;
+                }
+                else {
+                    current->skipCount++;
+                    if (current->skipCount == 3)    {
+                        // creating another to the pointer to be deleted since current
+                        // would have to move before deletion
+                        Node* toDelete = current;
+                        // if head to be deleted
+                        if (prev == nullptr)
+                            head = current->next;
+                        // if random node to be deleted
+                        else
+                            prev->next = current->next;
+                        // if tail is to be deleted
+                        if (tail == current)
+                            tail = prev;
+                        
+
+                        current = current->next; // move current to next since current current is toDelete
+                        delete toDelete;
+                        length--;
+                        std::cout << "Student Auto-Dropped" << std::endl;
+                    }
+                    else {
+                        prev = current;
+                        current = current->next;
+                    }
+                }
+            }
+            std::cout << "Seat Remains Unallocated" << std::endl;
+        }
+
+        void printList() {
+        Node* temp = head;
+        while (temp != nullptr) {
+            std::cout << "[ID:" << temp->studentID
+                       << " cgpa:" << temp->cgpa
+                       << " rt:" << temp->requestTime
+                       << " credits:" << temp->creditHoursEnrolled
+                    << " skip:" << temp->skipCount << "] -> ";
+        temp = temp->next;
+    }
+    std::cout << "nullptr" << std::endl;
+}
 };
 
 int main()  {
+    // test main
+    
     return 0;
 }
