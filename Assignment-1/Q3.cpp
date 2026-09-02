@@ -57,7 +57,50 @@ class List {
                     head = newNode;
                     tail = newNode;
                     length = 1;
+        }
+
+        // Part A Solution Function
+        void insertStudent(int studentID, float cgpa, int requestTime, int creditHoursEnrolled) {
+            Node* newNode = new Node(studentID, cgpa, requestTime, creditHoursEnrolled);
+            // if the coming node is the forst ever in the list
+            if (head == nullptr)    {   // same as length == 0
+                head = newNode;
+                tail = newNode;
+                head->next = nullptr;
+                return;
+            }
+            // if it is not the first in the list
+            else {
+                Node* temp = head;
+                // if coming node is better than head
+                if (newNode->cgpa > temp->cgpa || 
+                    (newNode->cgpa == temp->cgpa && newNode->requestTime < temp->requestTime))  {
+                        newNode->next = head;
+                        head = newNode;
+                        return;
+                    }
+                
+                else {
+                    // if not better than head but not worst (tail)
+                    while (temp->next != nullptr && 
+                            !((newNode->cgpa > temp->next->cgpa) || 
+                               newNode->cgpa == temp->next->cgpa && (newNode->requestTime < temp->next->requestTime))) {
+                                temp = temp->next;
+                    }
+                    // the coming node is better than te node pointed by temp (temp->next)
+                    // but not temp itself (checked in previous iteration of while)
+                    newNode->next = temp->next;
+                    temp->next = newNode;
+
+                    // if it was indeed worst node of all then it  hsould be tail
+                    if (newNode->next == nullptr)   {
+                        tail = newNode;
+                    }
                 }
+            }
+            length++;
+            return;
+        }
 };
 
 int main()  {
