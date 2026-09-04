@@ -81,4 +81,42 @@ class List {
                 }
                 length++;
             }
+
+            // Part B Solution Function Helper
+            void mergeNodes(Node* node, Node* neighbor) {
+                int mergedStartTime = (node->startTime >= neighbor->startTime) ? neighbor->startTime : node->startTime; // min(node, neighbor)
+                int mergedDuration = (node->startTime + node->duration >= neighbor->startTime + neighbor->duration) ? node->startTime + node->duration : neighbor->startTime + neighbor->duration; // max(nodes, neighbors)
+                int mergedTargetTemp = (node->targetTemp + neighbor->targetTemp) / 2; // floor average
+                bool mergedIsLocked = node->isLocked || neighbor->isLocked;
+
+                // we are going to put merged data in node and delete neighbor
+                node->startTime = mergedStartTime;
+                node->duration = mergedDuration;
+                node->targetTemp = mergedTargetTemp;
+                node->isLocked = mergedIsLocked;
+
+                // now we are going to simply delete neighbor and relink
+                if (neighbor == head)   {
+                    if (head == tail)   {
+                        head = nullptr;
+                        tail = nullptr;
+                    }
+                    else {
+                        head->backward->forward = head->forward;
+                        head = head->forward;
+                    }
+                }
+                else if (neighbor == tail)  {
+                    tail = tail->backward;
+                    tail->forward = nullptr;
+
+                }
+                else {
+                    neighbor->backward->forward = neighbor->forward;
+                    neighbor->forward->backward = neighbor->backward;
+                }
+
+                delete neighbor;
+                length--;
+            }
 };
