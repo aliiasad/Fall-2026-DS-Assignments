@@ -102,7 +102,7 @@ class List {
                         tail = nullptr;
                     }
                     else {
-                        head->backward->forward = head->forward;
+                        head->forward->backward = nullptr;
                         head = head->forward;
                     }
                 }
@@ -118,5 +118,39 @@ class List {
 
                 delete neighbor;
                 length--;
+            }
+
+            // Part B Solution Function
+            void checkAndMerge(Node* node)  {
+                int T = 10;
+                bool merged = true; // to re-check after merge
+
+                while (merged) {
+                    merged = false;
+
+                    if (node->forward != nullptr)   {
+                        int overlap = (node->startTime + node->duration) - node->forward->startTime;
+                        if (overlap > T)    {
+                            mergeNodes(node, node->forward);
+                            merged = true;
+                            continue;
+                        }
+                        else if (overlap > 0) {
+                            std::cout << "Minor Overlap Detected with Next Event!" << std::endl;
+                        }
+                    }
+
+                    if (node->backward != nullptr)  {
+                        int overlap = (node->backward->startTime + node->backward->duration) - node->startTime;
+                        if (overlap > T)    {
+                            mergeNodes(node, node->backward);
+                            merged = true;
+                            continue;
+                        }
+                        else if (overlap > 0) {
+                            std::cout << "Minor Overlap Detected with Previous Event!" << std::endl;
+                        }
+                    }
+                }
             }
 };
