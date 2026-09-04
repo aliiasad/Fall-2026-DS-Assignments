@@ -252,6 +252,57 @@ class List {
 
 int main()  {
     // test main
+    std::cout << "Test 1: insertStudent (Part A)\n";
+    List listA;
+    listA.insertStudent(1, 3.5, 1, 15);  // S1
+    listA.insertStudent(2, 3.8, 2, 16);  // S2
+    listA.insertStudent(3, 3.8, 1, 12);  // S3
+    listA.insertStudent(4, 3.2, 3, 9);   // S4
+
+    std::cout << "Expected: S3 -> S2 -> S1 -> S4\n";
+    listA.printList();
+
+    std::cout << "\nTest 2: allocateSeat (Part B)\n";
+    std::cout << "Allocating a seat...\n";
+    listA.allocateSeat();   // S3 is eligible (12+3<=18) -> allocated
+    std::cout << "Expected: S2 -> S1 -> S4\n";
+    listA.printList();
+
+    std::cout << "\nTest 3: allocateSeat skip/auto-drop\n";
+    List listB;
+    listB.insertStudent(7, 3.0, 1, 17);  // S7: 17+3=20 > 18, ineligible
+    listB.insertStudent(8, 2.9, 2, 16);  // S8: 16+3=19 > 18, ineligible
+    listB.insertStudent(9, 2.8, 3, 6);   // S9: 6+3=9  <= 18, eligible
+
+    std::cout << "Before:\n";
+    listB.printList();
+
+    // call allocateSeat a couple of times to naturally build up skipCount,
+    // then a final call to see eligible allocation happen
+    listB.allocateSeat();  // S9 eligible immediately -> allocated
+    std::cout << "After one allocateSeat call:\n";
+    listB.printList();
+
+    std::cout << "\nTest 4: mergeWaitLists (Part C)\n";
+    List listC;
+    listC.insertStudent(10, 3.9, 1, 5);  // S10
+    listC.insertStudent(11, 3.1, 1, 5);  // S11
+
+    List listD;
+    listD.insertStudent(12, 3.6, 1, 5);  // S12
+    listD.insertStudent(13, 3.0, 1, 5);  // S13
+
+    std::cout << "listC before merge:\n";
+    listC.printList();
+    std::cout << "listD before merge:\n";
+    listD.printList();
+
+    listC.mergeWaitLists(listD);
+
+    std::cout << "listC after merge (expected: S10 -> S12 -> S11 -> S13):\n";
+    listC.printList();
+    std::cout << "listD after merge (should be empty):\n";
+    listD.printList();
     
     return 0;
 }
