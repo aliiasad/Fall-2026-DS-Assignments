@@ -158,18 +158,96 @@ class List {
             std::cout << "Seat Remains Unallocated" << std::endl;
         }
 
+        // Part C SOlution Function
+        // **important design note**
+        /*the function signature provided in the problem statement uses a Node* data member
+        i.e., the head of other list (dummy.list) but the design followed in this question
+        keeps the Node* member of the List private from any outer access. Since, it is private
+        , this design cannot specifically use the Node* from other list and hence the signature
+        is altered according to current system design :)*/
+
+        void mergeWaitLists(List& dummy)   {
+            Node* i = this->head;   // head data is safe now
+            Node* j = dummy.head;
+
+            Node* mergeTail = nullptr;  // this tracks the last node of merged list
+
+            this->head = nullptr;   // now we can push new data in head adn know atleast one element has come
+
+            while (i != nullptr && j != nullptr)    {
+                Node* winner = nullptr;
+
+                if (i->cgpa > j->cgpa ||
+                    (i->cgpa == j->cgpa && i->requestTime < j->requestTime))    {
+                        winner = i;
+                        i = i->next;
+                    }
+                else {
+                    winner = j;
+                    j = j->next;
+                }
+                // the winner node has not been merged yet.. it only sits as winner == i || j
+                if (mergeTail == nullptr)
+                    this->head = winner;
+                else 
+                    mergeTail->next = winner;
+
+                // after this, move mergeTail to next Node since that would be now last and its
+                // previous winner
+                mergeTail = winner;
+            }
+
+            // at this point we have lost our tail pointer but we can locate it later, after
+            // merging the remainder nodes
+
+            // design node for next part is that the remainder node and others if any are
+            // already linked since they belong to one of the two lists.. so linking one
+            // to last winner would link the whole remaining list and its already in sortd
+            // order so te result would also be sorted
+            Node* remainder = (i == nullptr) ? j : i;
+            
+            // there must exist a case where the second list is empty (j == nullptr from 
+            // beginning), that means the loop never runs and hence head (this->head) must 
+            // be linked to remainder
+            if (mergeTail == nullptr)
+                this->head = remainder;
+            else {
+                mergeTail->next = remainder;
+            }
+
+            // now lets rellocate our tail since it has been lost during merging operation
+            // this List contains a *tail, but if your design doesn't have tail, you are already 
+            // done since no *tail to keep updated
+            if (head == nullptr)
+                tail = nullptr;
+            else{
+                Node* temp = head;
+                while (temp->next != nullptr)   {
+                    temp = temp->next;
+                }
+                tail = temp;
+                temp = nullptr;
+            }
+
+            // other list is now empty
+            dummy.head = nullptr;
+            dummy.tail = nullptr;
+            this->length += dummy.length;
+            dummy.length = 0;
+        }
+
         void printList() {
-        Node* temp = head;
-        while (temp != nullptr) {
-            std::cout << "[ID:" << temp->studentID
+            Node* temp = head;
+            while (temp != nullptr) {
+                std::cout << "[ID:" << temp->studentID
                        << " cgpa:" << temp->cgpa
                        << " rt:" << temp->requestTime
                        << " credits:" << temp->creditHoursEnrolled
                     << " skip:" << temp->skipCount << "] -> ";
-        temp = temp->next;
-    }
+            temp = temp->next;
+            }
     std::cout << "nullptr" << std::endl;
-}
+        }
 };
 
 int main()  {
