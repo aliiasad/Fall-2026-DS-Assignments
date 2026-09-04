@@ -51,4 +51,34 @@ class List {
                 tail = newNode;
                 length = 1;
             }
+
+            // Part A Solution Function
+            void insertSchedule(int startTime, int duration, int targetTemp, bool isLocked) {
+                Node* newNode = new Node(startTime, duration, targetTemp, isLocked);
+                if (head == nullptr)    {
+                    head = newNode; // forward and backward null from constructor
+                    tail = newNode;
+                }
+                else if (newNode->startTime <= head->startTime)   {
+                    head->backward = newNode;
+                    newNode->forward = head;
+                    head = newNode;
+                }
+                else if (newNode->startTime >= tail->startTime)   {
+                    newNode->backward = tail;
+                    tail->forward = newNode;
+                    tail = newNode;
+                }
+                else {
+                    Node* temp = head;
+                    while (newNode->startTime >= temp->startTime)   {
+                        temp = temp->forward;
+                    }
+                    newNode->forward = temp;
+                    temp->backward->forward = newNode;
+                    newNode->backward = temp->backward;
+                    temp->backward = newNode;
+                }
+                length++;
+            }
 };
