@@ -36,12 +36,18 @@ class List {
         Node* tail; // last node of the list
         int length; // lenth of the list
 
+        // For Part C
+        Node* cursor;
+
         public:
             // def constructor
             List()  {
                 head = nullptr;
                 tail = nullptr;
                 length = 0;
+
+                // Part C Extension
+                cursor = nullptr;
             }
 
             // para constructor
@@ -50,6 +56,9 @@ class List {
                 head = newNode;
                 tail = newNode;
                 length = 1;
+
+                // Part C Extension
+                cursor = head;
             }
 
             // Part A Solution Function
@@ -58,6 +67,9 @@ class List {
                 if (head == nullptr)    {
                     head = newNode; // forward and backward null from constructor
                     tail = newNode;
+
+                    // Part C Extension
+                    cursor = newNode;
                 }
                 else if (newNode->startTime <= head->startTime)   {
                     head->backward = newNode;
@@ -85,7 +97,10 @@ class List {
             // Part B Solution Function Helper
             void mergeNodes(Node* node, Node* neighbor) {
                 int mergedStartTime = (node->startTime >= neighbor->startTime) ? neighbor->startTime : node->startTime; // min(node, neighbor)
-                int mergedDuration = (node->startTime + node->duration >= neighbor->startTime + neighbor->duration) ? node->startTime + node->duration : neighbor->startTime + neighbor->duration; // max(nodes, neighbors)
+                int mergedEndTime = (node->startTime + node->duration >= neighbor->startTime + neighbor->duration) 
+                     ? node->startTime + node->duration 
+                     : neighbor->startTime + neighbor->duration;
+                int mergedDuration = mergedEndTime - mergedStartTime; // max(nodes, neighbors)
                 int mergedTargetTemp = (node->targetTemp + neighbor->targetTemp) / 2; // floor average
                 bool mergedIsLocked = node->isLocked || neighbor->isLocked;
 
@@ -152,5 +167,59 @@ class List {
                         }
                     }
                 }
+            }
+
+            // Part C Solution Helpers (Kinda)
+            void next() {
+                if (cursor->forward != nullptr)
+                    cursor = cursor->forward;
+            }
+
+            void prev() {
+                if (cursor->backward != nullptr)
+                    cursor = cursor->backward;
+            }
+
+            // Part C Solution Function
+            void undoLast(int n)    {
+                Node* current = cursor->backward;
+
+                // required counter variables
+                int deletedNodes = 0;
+                int skippedNodes = 0;
+
+                /*we have to delete the nodes before cursor upto n till nullptr
+                and also skip locked*/
+                while (current != nullptr && deletedNodes < n)  {
+                    if (current->isLocked)  {
+                        skippedNodes++;
+                        current = current->backward;
+                    }
+                    else {
+                        // now we are going to do the linking process for head and body
+                        // not for tail because tail can max be cursor
+                        Node* toDelete = current;
+                        current = current->backward;
+                        if (toDelete == head)   {
+                            head = toDelete->forward;
+                            head->backward = nullptr;
+                        }
+                        else {
+                            toDelete->backward->forward = toDelete->forward;
+                            toDelete->forward->backward = toDelete->backward;
+                        }
+                        // deleteion 
+                        delete toDelete;
+                        length--;
+                        deletedNodes++;
+                    }
+                }
+
+                std::cout << "Undid" << deletedNodes << " out of " << n << " entries." << std::endl;
+
+                if (current == nullptr)
+                    std::cout << "Reached start of timeline!" << std::endl;
+
+                std::cout << skippedNodes << "skipped in the process." << std::endl;
             }
 };
