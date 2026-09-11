@@ -86,7 +86,7 @@ class List {
             }
             while (temp != current);
 
-            std::cout << "System Overload — query queued" << std::endl;
+            std::cout << "System Overload! Query queued" << std::endl;
         }   
 
         void rotateCycle()  {
@@ -176,7 +176,7 @@ class List {
             } while (remaining > 0 && temp != runner);
             
             if (remaining > 0)  {
-                std::cout << remaining << "query/queries unassigned" << std::endl;
+                std::cout << remaining << " query/queries unassigned" << std::endl;
             }
         }
         
@@ -203,3 +203,59 @@ class List {
 };
 
 List::Node* List::current = nullptr;
+
+int main() {
+    List ring;
+
+    // Build the ring from the example: B1, B2, B3, B4
+    ring.addBot("B1", 5);
+    ring.addBot("B2", 5);
+    ring.addBot("B3", 4);
+    ring.addBot("B4", 3);
+
+    std::cout << "After addBot x4" << std::endl;
+    ring.printRing();
+
+    std::cout << "After 3 assignQuery() calls" << std::endl;
+    ring.assignQuery();
+    ring.assignQuery();
+    ring.assignQuery();
+    ring.printRing();
+
+    std::cout << "Forcing chatsHandledSinceRest to R via repeated assignQuery" << std::endl;
+    for (int i = 0; i < R * 4; i++) {
+        ring.assignQuery(); // spam chats so at least one bot hits R
+    }
+    ring.printRing();
+
+    std::cout << "After rotateCycle()" << std::endl;
+    ring.rotateCycle();
+    ring.printRing();
+
+    ring.rotateCycle();
+    ring.rotateCycle();
+    std::cout << "After 2 more rotateCycle() calls (rest should end for some)" << std::endl;
+    ring.printRing();
+
+    // Test crashBot
+    std::cout << "After crashBot(\"B2\")" << std::endl;
+    ring.crashBot("B2");
+    ring.printRing();
+
+
+    std::cout << "After crashBot(\"B99\") [nonexistent]" << std::endl;
+    ring.crashBot("B99");
+    ring.printRing();
+
+
+    ring.crashBot("B3");
+    ring.crashBot("B4");
+    std::cout << "After crashing down to one bot" << std::endl;
+    ring.printRing();
+
+    ring.crashBot("B1");
+    std::cout << "After crashing the last bot" << std::endl;
+    ring.printRing();
+
+    return 0;
+}
