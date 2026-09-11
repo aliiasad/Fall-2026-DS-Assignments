@@ -53,7 +53,21 @@ class List {
         }
 
         // required functions
-        void addBot(std::string botId, int maxLoad);
+        void addBot(std::string botId, int maxLoad) {
+            Node* newNode = new Node(botId, maxLoad);   // parameterized constructor handles point 1 of the spec
+
+            // if currently empty
+            if (current == nullptr) {
+                current = newNode;
+                current->next = current;
+            }
+            else {
+                newNode->next = current->next;
+                current->next = newNode;
+            }
+            length++;
+        }
+
         void assignQuery();
         void rotateCycle();
         void crashBot(std::string botId);
