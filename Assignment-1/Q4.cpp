@@ -68,7 +68,24 @@ class List {
             length++;
         }
 
-        void assignQuery();
+        void assignQuery()  {
+            Node* temp = current;
+            do {
+                if (temp->isResting == true || temp->currentLoad == temp->maxLoad)  {
+                    temp = temp->next;
+                }
+                else {
+                    temp->chatsHandledSinceRest++;
+                    temp->currentLoad++;
+                    current = temp->next;
+                    return;
+                }
+            }
+            while (temp != current);
+
+            std::cout << "System Overload — query queued" << std::endl;
+        }   
+
         void rotateCycle();
         void crashBot(std::string botId);
         void printRing();
