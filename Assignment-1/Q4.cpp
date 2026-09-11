@@ -102,18 +102,18 @@ class List {
                         temp = temp->next;
                     }
                 }
-                    else {
-                        if (temp->lapsPassedWhileResting < 2)   {
-                            temp->lapsPassedWhileResting++;
-                            temp = temp->next;
-                        }
-                        else {
-                            temp->isResting = false;
-                            temp->chatsHandledSinceRest = 0;
-                            temp = temp->next;
-                        }
+                else {
+                    if (temp->lapsPassedWhileResting < 2)   {
+                        temp->lapsPassedWhileResting++;
+                        temp = temp->next;
                     }
-                
+                    else {
+                        temp->isResting = false;
+                        temp->chatsHandledSinceRest = 0;
+                        temp->lapsPassedWhileResting = 0;
+                        temp = temp->next;
+                    }
+                }                
             }
             while (temp != current);
         }
