@@ -117,8 +117,89 @@ class List {
             }
             while (temp != current);
         }
-        void crashBot(std::string botId);
-        void printRing();
+        void crashBot(std::string botId)    {
+            if (current == nullptr) {
+                return;
+            }
+
+            bool found = false;
+            Node* prevToCrashed = current;
+
+            do
+            {
+                if (prevToCrashed->next->botId == botId)    {
+                    found = true;
+                    break;
+                }
+                else {
+                    prevToCrashed = prevToCrashed->next;
+                }
+            } while (prevToCrashed != current);
+            
+            if (!found)
+                return;
+
+            Node* crashed = prevToCrashed->next;
+            int crashedQueries = crashed->currentLoad;
+
+            if (crashed->next == crashed)   {
+                if (crashedQueries > 0)   {
+                    std::cout << crashedQueries << " query/queries unassigned!" << std::endl;
+                }
+                delete crashed;
+                current = nullptr;
+                length--;
+                return;
+            }
+            Node* runner = crashed->next;
+            prevToCrashed->next = runner;
+
+            if (current == crashed) {
+                current = runner;
+            }
+            delete crashed;
+            length--;
+
+            Node* temp = runner;
+
+            int remaining = crashedQueries;
+
+            do
+            {
+                if (remaining > 0)  {
+                    int room = temp->maxLoad - temp->currentLoad;
+                    int absorbed = (room < remaining) ? room : remaining;
+                    temp->currentLoad += absorbed;
+                    remaining -= absorbed;
+                }
+                temp = temp->next;
+            } while (remaining > 0 && temp != runner);
+            
+            if (remaining > 0)  {
+                std::cout << remaining << "query/queries unassigned" << std::endl;
+            }
+        }
+        
+        // this method is made accorsing to how spec shows example
+        void printRing() {
+            if (current == nullptr) {
+                std::cout << "Ring is empty." << std::endl;
+                return;
+            }
+
+            Node* temp = current;
+            do {
+                std::cout << temp->botId
+                        << "(load=" << temp->currentLoad
+                        << ",max=" << temp->maxLoad
+                        << ",resting=" << (temp->isResting ? "T" : "F")
+                        << ",handled=" << temp->chatsHandledSinceRest
+                        << ") -> ";
+                temp = temp->next;
+            } while (temp != current);
+
+            std::cout << "(back to " << current->botId << ") current = " << current->botId << std::endl;
+        }
 };
 
 List::Node* List::current = nullptr;
