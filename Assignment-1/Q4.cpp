@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
 
+// For Part C
+const int R = 5; // chat threshold, defined in spec
+
 class List {
     private:
         class Node  {
@@ -86,7 +89,34 @@ class List {
             std::cout << "System Overload — query queued" << std::endl;
         }   
 
-        void rotateCycle();
+        void rotateCycle()  {
+            Node* temp = current;
+
+            do {
+                if (!temp->isResting)   {
+                    if (temp->chatsHandledSinceRest == R)   {
+                        temp->isResting = true;
+                        temp = temp->next;
+                    }
+                    else {
+                        temp = temp->next;
+                    }
+                }
+                    else {
+                        if (temp->lapsPassedWhileResting < 2)   {
+                            temp->lapsPassedWhileResting++;
+                            temp = temp->next;
+                        }
+                        else {
+                            temp->isResting = false;
+                            temp->chatsHandledSinceRest = 0;
+                            temp = temp->next;
+                        }
+                    }
+                
+            }
+            while (temp != current);
+        }
         void crashBot(std::string botId);
         void printRing();
 };
