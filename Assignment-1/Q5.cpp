@@ -92,6 +92,9 @@ class List {
                     temp->backward = newNode;
                 }
                 length++;
+
+                // Part B Extension: check for overlap/merge right after insertion
+                checkAndMerge(newNode);
             }
 
             // Part B Solution Function Helper
@@ -109,6 +112,11 @@ class List {
                 node->duration = mergedDuration;
                 node->targetTemp = mergedTargetTemp;
                 node->isLocked = mergedIsLocked;
+
+                // Part C safety: cursor must not be left dangling if it was
+                // pointing at the neighbor node that is about to be deleted
+                if (cursor == neighbor)
+                    cursor = node;
 
                 // now we are going to simply delete neighbor and relink
                 if (neighbor == head)   {
@@ -222,4 +230,47 @@ class List {
 
                 std::cout << skippedNodes << "skipped in the process." << std::endl;
             }
+
+            // Print function (required for every list)
+            void printSchedule() {
+                Node* temp = head;
+                while (temp != nullptr) {
+                    std::cout << "[start:" << temp->startTime
+                              << " dur:" << temp->duration
+                              << " temp:" << temp->targetTemp
+                              << " locked:" << (temp->isLocked ? "T" : "F")
+                              << "] <-> ";
+                    temp = temp->forward;
+                }
+                std::cout << "nullptr" << std::endl;
+            }
 };
+
+int main() {
+    List thermostat;
+
+    // Part A: sorted insertion (also triggers Part B merge checks automatically)
+    thermostat.insertSchedule(420, 30, 22, false);   // 7:00 AM
+    thermostat.insertSchedule(1080, 60, 20, false);  // 6:00 PM
+    thermostat.insertSchedule(450, 45, 23, false);   // 7:30 AM -> no overlap yet
+    std::cout << "After 3 inserts:\n";
+    thermostat.printSchedule();
+
+    thermostat.insertSchedule(435, 50, 25, false);   // 7:15 AM -> triggers cascading merge
+    std::cout << "After 4th insert (cascading merge expected -> [420,dur75,24] -> [1080,dur60,20]):\n";
+    thermostat.printSchedule();
+
+    thermostat.insertSchedule(900, 30, 19, true);    // locked event, no overlap
+    std::cout << "After locked insert:\n";
+    thermostat.printSchedule();
+
+    // Part C: cursor-based undo
+    // move cursor to the last node (1080) before undoing
+    thermostat.next();
+    thermostat.next();
+    std::cout << "\nCalling undoLast(2) from the 1080 node:\n";
+    thermostat.undoLast(2);
+    thermostat.printSchedule();
+
+    return 0;
+}
