@@ -67,6 +67,7 @@ class List {
                 head = newNode;
                 tail = newNode;
                 head->next = nullptr;
+                length++;
                 return;
             }
             // if it is not the first in the list
@@ -77,6 +78,7 @@ class List {
                     (newNode->cgpa == temp->cgpa && newNode->requestTime < temp->requestTime))  {
                         newNode->next = head;
                         head = newNode;
+                        length++;
                         return;
                     }
                 
