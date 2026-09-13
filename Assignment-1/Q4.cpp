@@ -103,8 +103,9 @@ class List {
                     }
                 }
                 else {
+                    // increment first --> this pass counts toward the 2 required to end rest
+                    temp->lapsPassedWhileResting++;
                     if (temp->lapsPassedWhileResting < 2)   {
-                        temp->lapsPassedWhileResting++;
                         temp = temp->next;
                     }
                     else {
@@ -207,54 +208,32 @@ List::Node* List::current = nullptr;
 int main() {
     List ring;
 
-    // Build the ring from the example: B1, B2, B3, B4
+    // Part A: build the ring (matches spec example shape -> B1 -> B3 -> B2 -> B1)
     ring.addBot("B1", 5);
-    ring.addBot("B2", 5);
-    ring.addBot("B3", 4);
-    ring.addBot("B4", 3);
-
-    std::cout << "After addBot x4" << std::endl;
+    ring.addBot("B2", 4);
+    ring.addBot("B3", 3);
+    std::cout << "After addBot x3 (expected B1 -> B3 -> B2 -> B1):\n";
     ring.printRing();
 
-    std::cout << "After 3 assignQuery() calls" << std::endl;
-    ring.assignQuery();
-    ring.assignQuery();
-    ring.assignQuery();
+    // Part B: round-robin assignment
+    for (int i = 0; i < 5; i++) ring.assignQuery();
+    std::cout << "\nAfter 5 assignQuery() calls:\n";
     ring.printRing();
 
-    std::cout << "Forcing chatsHandledSinceRest to R via repeated assignQuery" << std::endl;
-    for (int i = 0; i < R * 4; i++) {
-        ring.assignQuery(); // spam chats so at least one bot hits R
-    }
-    ring.printRing();
-
-    std::cout << "After rotateCycle()" << std::endl;
+    // Part C: fill B1 (max=5) up to R=5 handled chats so it starts resting, then rotate
+    for (int i = 0; i < 7; i++) ring.assignQuery(); // fills the whole ring to capacity (12 total)
     ring.rotateCycle();
+    std::cout << "\nAfter more assignQuery() + rotateCycle() (a bot should start resting):\n";
     ring.printRing();
 
     ring.rotateCycle();
     ring.rotateCycle();
-    std::cout << "After 2 more rotateCycle() calls (rest should end for some)" << std::endl;
+    std::cout << "\nAfter 2 more rotateCycle() calls (rest should end):\n";
     ring.printRing();
 
-    // Test crashBot
-    std::cout << "After crashBot(\"B2\")" << std::endl;
+    // Part D: crash a bot, watch its load cascade forward
+    std::cout << "\nAfter crashBot(\"B2\"):\n";
     ring.crashBot("B2");
-    ring.printRing();
-
-
-    std::cout << "After crashBot(\"B99\") [nonexistent]" << std::endl;
-    ring.crashBot("B99");
-    ring.printRing();
-
-
-    ring.crashBot("B3");
-    ring.crashBot("B4");
-    std::cout << "After crashing down to one bot" << std::endl;
-    ring.printRing();
-
-    ring.crashBot("B1");
-    std::cout << "After crashing the last bot" << std::endl;
     ring.printRing();
 
     return 0;
