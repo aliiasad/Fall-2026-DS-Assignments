@@ -61,8 +61,23 @@ class List {
                 cursor = head;
             }
 
+            // destructor to free every remaining node
+            ~List() {
+                Node* temp = head;
+                while (temp != nullptr) {
+                    Node* nextNode = temp->forward;     // save next before deleting
+                    delete temp;
+                    temp = nextNode;
+                }
+                head = nullptr;
+                tail = nullptr;
+                cursor = nullptr;
+                length = 0;
+            }
+
             // Part A Solution Function
-            void insertSchedule(int startTime, int duration, int targetTemp, bool isLocked) {
+            // isLocked defaults to false, as in the spec
+            void insertSchedule(int startTime, int duration, int targetTemp, bool isLocked = false) {
                 Node* newNode = new Node(startTime, duration, targetTemp, isLocked);
                 if (head == nullptr)    {
                     head = newNode; // forward and backward null from constructor
@@ -113,7 +128,7 @@ class List {
                 node->targetTemp = mergedTargetTemp;
                 node->isLocked = mergedIsLocked;
 
-                // Part C safety: cursor must not be left dangling if it was
+                // cursor must not be left dangling if it was
                 // pointing at the neighbor node that is about to be deleted
                 if (cursor == neighbor)
                     cursor = node;
@@ -151,18 +166,7 @@ class List {
                 while (merged) {
                     merged = false;
 
-                    if (node->forward != nullptr)   {
-                        int overlap = (node->startTime + node->duration) - node->forward->startTime;
-                        if (overlap > T)    {
-                            mergeNodes(node, node->forward);
-                            merged = true;
-                            continue;
-                        }
-                        else if (overlap > 0) {
-                            std::cout << "Minor Overlap Detected with Next Event!" << std::endl;
-                        }
-                    }
-
+                    // previous neighbor is checked first, then the next neighbor
                     if (node->backward != nullptr)  {
                         int overlap = (node->backward->startTime + node->backward->duration) - node->startTime;
                         if (overlap > T)    {
@@ -170,26 +174,51 @@ class List {
                             merged = true;
                             continue;
                         }
-                        else if (overlap > 0) {
-                            std::cout << "Minor Overlap Detected with Previous Event!" << std::endl;
+                    }
+
+                    if (node->forward != nullptr)   {
+                        int overlap = (node->startTime + node->duration) - node->forward->startTime;
+                        if (overlap > T)    {
+                            mergeNodes(node, node->forward);
+                            merged = true;
+                            continue;
                         }
                     }
+                }
+
+                // all merges are finished, so any overlap left is minor (T or less)
+                if (node->backward != nullptr)  {
+                    int overlap = (node->backward->startTime + node->backward->duration) - node->startTime;
+                    if (overlap > 0)
+                        std::cout << "Minor Overlap Detected with Previous Event!" << std::endl;
+                }
+                if (node->forward != nullptr)   {
+                    int overlap = (node->startTime + node->duration) - node->forward->startTime;
+                    if (overlap > 0)
+                        std::cout << "Minor Overlap Detected with Next Event!" << std::endl;
                 }
             }
 
             // Part C Solution Helpers (Kinda)
             void next() {
+                if (cursor == nullptr)  
+                    return;
                 if (cursor->forward != nullptr)
                     cursor = cursor->forward;
             }
 
             void prev() {
+                if (cursor == nullptr)  
+                    return;
                 if (cursor->backward != nullptr)
                     cursor = cursor->backward;
             }
 
             // Part C Solution Function
             void undoLast(int n)    {
+                if (cursor == nullptr)  
+                    return;
+
                 Node* current = cursor->backward;
 
                 // required counter variables
@@ -223,12 +252,13 @@ class List {
                     }
                 }
 
-                std::cout << "Undid" << deletedNodes << " out of " << n << " entries." << std::endl;
-
-                if (current == nullptr)
-                    std::cout << "Reached start of timeline!" << std::endl;
-
-                std::cout << skippedNodes << "skipped in the process." << std::endl;
+                
+                std::cout << "Undid " << deletedNodes << " of " << n << " requested changes";
+                if (current == nullptr && deletedNodes < n)
+                    std::cout << " (reached start of timeline; ";
+                else
+                    std::cout << " (";
+                std::cout << skippedNodes << (skippedNodes == 1 ? " locked entry was skipped)." : " locked entries were skipped).") << std::endl;
             }
 
             // Print function (required for every list)

@@ -41,7 +41,9 @@ class List {
         };
     public: 
 
-        int length = 0;
+        // static so every List object sees the same length as the shared ring
+        // (defined outside the class below)
+        static int length;
 
         static Node* current; // pointer to node being served
 
@@ -53,6 +55,24 @@ class List {
             newNode->next = newNode;
             current = newNode;
             length++;
+        }
+
+        // destructor frees the whole ring once
+        // current is static, so if the ring is already freed (current == nullptr) do nothing
+        ~List() {
+            if (current == nullptr)
+                return;
+
+            Node* start = current;
+            Node* temp = start->next;
+            while (temp != start)   {
+                Node* nextNode = temp->next;    // save next before deleting
+                delete temp;
+                temp = nextNode;
+            }
+            delete start;
+            current = nullptr;
+            length = 0;
         }
 
         // required functions
@@ -72,6 +92,12 @@ class List {
         }
 
         void assignQuery()  {
+            // empty ring guard
+            if (current == nullptr) {
+                std::cout << "Ring is empty! Query queued" << std::endl;
+                return;
+            }
+
             Node* temp = current;
             do {
                 if (temp->isResting == true || temp->currentLoad == temp->maxLoad)  {
@@ -80,6 +106,9 @@ class List {
                 else {
                     temp->chatsHandledSinceRest++;
                     temp->currentLoad++;
+                    // rest immediately at R so the count can never go above R
+                    if (temp->chatsHandledSinceRest >= R)
+                        temp->isResting = true;
                     current = temp->next;
                     return;
                 }
@@ -90,11 +119,15 @@ class List {
         }   
 
         void rotateCycle()  {
+            // empty ring guard
+            if (current == nullptr)
+                return;
+
             Node* temp = current;
 
             do {
                 if (!temp->isResting)   {
-                    if (temp->chatsHandledSinceRest == R)   {
+                    if (temp->chatsHandledSinceRest >= R)   {
                         temp->isResting = true;
                         temp = temp->next;
                     }
@@ -204,6 +237,7 @@ class List {
 };
 
 List::Node* List::current = nullptr;
+int List::length = 0;   // definition of the static length
 
 int main() {
     List ring;
