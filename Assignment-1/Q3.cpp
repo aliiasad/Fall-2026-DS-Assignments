@@ -59,6 +59,19 @@ class List {
                     length = 1;
         }
 
+        // destructor
+        ~List() {
+            Node* temp = head;
+            while (temp != nullptr) {
+                Node* nextNode = temp->next;    // save next before deleting
+                delete temp;
+                temp = nextNode;
+            }
+            head = nullptr;
+            tail = nullptr;
+            length = 0;
+        }
+
         // Part A Solution Function
         void insertStudent(int studentID, float cgpa, int requestTime, int creditHoursEnrolled) {
             Node* newNode = new Node(studentID, cgpa, requestTime, creditHoursEnrolled);
@@ -169,6 +182,14 @@ class List {
         is altered according to current system design :)*/
 
         void mergeWaitLists(List& dummy)   {
+            // merging a list with itself would corrupt it, so do nothing
+            if (&dummy == this)
+                return;
+
+            // remember both old tails before the pointers get changed
+            Node* thisOldTail = this->tail;
+            Node* otherOldTail = dummy.tail;
+
             Node* i = this->head;   // head data is safe now
             Node* j = dummy.head;
 
@@ -179,8 +200,9 @@ class List {
             while (i != nullptr && j != nullptr)    {
                 Node* winner = nullptr;
 
-                if (i->cgpa > j->cgpa ||
-                    (i->cgpa == j->cgpa && i->requestTime < j->requestTime))    {
+                // on a full tie this list's node (i) wins; j wins only if strictly better
+                if (!(j->cgpa > i->cgpa ||
+                    (j->cgpa == i->cgpa && j->requestTime < i->requestTime)))    {
                         winner = i;
                         i = i->next;
                     }
@@ -220,16 +242,13 @@ class List {
             // now lets rellocate our tail since it has been lost during merging operation
             // this List contains a *tail, but if your design doesn't have tail, you are already 
             // done since no *tail to keep updated
-            if (head == nullptr)
-                tail = nullptr;
-            else{
-                Node* temp = head;
-                while (temp->next != nullptr)   {
-                    temp = temp->next;
-                }
-                tail = temp;
-                temp = nullptr;
-            }
+            // no walk needed, the remainder's old tail is the new tail
+            if (remainder == nullptr)
+                tail = nullptr;             // both lists were empty
+            else if (i == nullptr)
+                tail = otherOldTail;        // remainder came from the other list
+            else
+                tail = thisOldTail;         // remainder came from this list
 
             // other list is now empty
             dummy.head = nullptr;
