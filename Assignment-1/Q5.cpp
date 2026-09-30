@@ -108,7 +108,7 @@ class List {
                 }
                 length++;
 
-                // Part B Extension: check for overlap/merge right after insertion
+                // Part B Extension --> check for overlap/merge right after insertion
                 checkAndMerge(newNode);
             }
 
