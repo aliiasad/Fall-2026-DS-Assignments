@@ -216,7 +216,7 @@ class List {
 
             // Part C Solution Function
             void undoLast(int n)    {
-                if (cursor == nullptr)  
+                if (cursor == nullptr)
                     return;
 
                 Node* current = cursor->backward;
