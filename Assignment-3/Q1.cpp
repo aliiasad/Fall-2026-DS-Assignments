@@ -48,7 +48,123 @@ class Tree {
             // (required helpers which access private data that cannot be 
             // sent by the main())
             void insertHelper(Node* root, const T& value, Node* parent);
-            Node* removeHelper(Node* root, const T& value, bool isRemoved);
+            Node* removeHelper(Node* root, const T& value, bool& isRemoved);
+            Node* minNode(Node* root);
+
+
+            // implementation
+
+            // to be used in remove node logic
+            Node* minNode(Node* root)   {
+                // the minimum node is the left most node of the tree
+                if (root == nullptr)
+                    return nullptr;
+                
+                if (root->left == nullptr)
+                    return root;
+                
+                if (root != nullptr && root->left != nullptr)    
+                    return minNode(root->left);
+            }
+
+            void insertHelper(Node* root, const T& value, Node* parent) {
+                /* when the traversal crosses last valid node, that's the position where
+                the ext node should be.*/
+                if (root == nullptr)    {
+                    root->data = value;
+                    root->parent = parent;
+                    return;
+                }
+                
+                /* if the given value is lesser than current node's value,
+                we move to left, else we move to right... if at any point 
+                given data is equal to node's data, its duplicate, cannot insert*/
+                if (value < root->data)
+                    insertHelper(root->left, value, root);
+                else if (value > root->data)
+                    insertHelper(root->right, value, root);
+                else {
+                    std::cout << "Did not perform Insertion! Duplicate Data." << std::endl;
+                    return;
+                }
+            }
+
+            /*design note: the functin maintains a boolean value (isRemoved) so 
+            that it can track how if the nde is deleted to decrease count (to be 
+            implemeted later)*/
+            Node* removeHelper(Node* node, const T& value, bool& isRemoved)  {
+                // crossed last possible node, then return null (base case)
+                if (node == nullptr)    {
+                    return nullptr;
+                }
+
+                /* the below logic locates the node to be deleted, it doesnt have to 
+                do anything with deletion*/
+                if (value < node->data) {
+                    /*if any node at the left of root node is deleted, it means
+                    the child(ren) of that deleted node have no parent, so
+                    a new parent (parent of that delete node) must be assigned
+                    to them*/
+                    node->left = removeHelper(node->left, value, isRemoved);
+                    /*now if the returned node is nullptr, then tou its fine, but
+                    if a node is returned, we ave to link it to the parrnt, as 
+                    explained right above the last line*/
+                    if (node->left != nullptr)  {
+                        node->left->parent = node;
+                    }
+
+                }
+                else if (node->data < value)    {
+                    // same explanation as above.. just for the right half of bst/avlt
+                    node->right = removeHelper(node->right, value, isRemoved);
+                    if (node->right != nullptr) {
+                        node->right->parent = node;
+                    }
+                }
+                /*if the value was neither small, nor large, then it must be the value*/
+                else {
+                    isRemoved = true;
+                    /*now we have found the value, so its time to delete the node
+                    There must be one of the three cases-> the node has no children,
+                    the node has a right or a left child or the node has two children*/
+
+                    // considering the case where no children, we simply delete
+                    if (node->left == nullptr && node->right == nullptr)    {
+                        delete node;
+                        return nullptr; // we must return null to the parent side that sent call;
+                    }
+
+                    /*considering the case where there is either left child or right child
+                    but not both... in this case, if left exists, we simply make it the root 
+                    and if right exists, we make it the root*/
+                    else if (node->left == nullptr)  {
+                        Node* child = node->right;
+                        delete node;
+                        return child;
+                    }
+                    else if (node->right == nullptr) {
+                        Node* child = node->left;
+                        delete node;
+                        return child;
+                    }
+
+                    /*remains the case where the node to be deleted has two children
+                    in this case, the node that replaces to be deleted node is the node
+                    having smallest value on the right side of that node*/
+
+                    /*the replacement logic is simply putiing the smallest node value in it and 
+                    then deleting that node itself*/
+                    Node* successor = minNode(node->right);
+                    node->data = successor->data;
+                    bool dummy = false; // using a dummy false to delete the node, so that isRemoved is not overwritten
+                    node->right = removeHelper(node->right, successor->data, dummy);
+                    if (node->right != nullptr)
+                        node->right->parent = node;
+                }
+                return node;
+            }
+
+
 
 
 };
