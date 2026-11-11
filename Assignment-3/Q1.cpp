@@ -1,4 +1,5 @@
 #include <iostream>
+#include <queue>
 
 template <typename T>
 /* The tree class contains node class inside it so a single
@@ -36,24 +37,42 @@ class Tree {
                 insert(value);
             }
 
-            // required and needed functions (they may require helpers)
+            // required and needed functions (they may require helpers
+            // implementation of base functions to be used in main()
 
-            void insert(const T& value);
+            void insert(const T& value) {
+                bool isInserted = false;
+                insertHelper(root, value, nullptr, isInserted);
+                if (isInserted)
+                    count++;
+                return;
+            }
 
-            // bool so we know if we removed or not, and it tells whether to 
-            // decrement count or not
-            bool remove(const T& value);    
+            void remove(const T& value) {
+                bool isRemoved = false;
+                root = removeHelper(root, value, isRemoved);
+                if (isRemoved)
+                    count--;
+            }
+
+            void levelOrder()   {
+                levelOrderHelper(root);
+                return;
+            }
 
 
             // (required helpers which access private data that cannot be 
             // sent by the main())
-            void insertHelper(Node* root, const T& value, Node* parent);
-            Node* removeHelper(Node* root, const T& value, bool& isRemoved);
-            Node* minNode(Node* root);
+            // void insertHelper(Node*& root, const T& value, Node* parent, bool& isInserted);
+            // Node* removeHelper(Node* root, const T& value, bool& isRemoved);
+            // Node* minNode(Node* root);
+            // void levelOrderHelper(Node* root);
+            // keep the prototypes commented out.. cpp doesnt allow prototyes in classes
+            // if the actual func is also implemented inside class
 
 
+        private:
             // implementation
-
             // to be used in remove node logic
             Node* minNode(Node* root)   {
                 // the minimum node is the left most node of the tree
@@ -67,11 +86,17 @@ class Tree {
                     return minNode(root->left);
             }
 
-            void insertHelper(Node* root, const T& value, Node* parent) {
+            
+            /*design note: the root travels with reference so that the new assigned
+            root in base case is actually linked.. it can also be simply done like
+            as done in removeHelper instead of pass by reference
+            i have exercised both methods..  use whatever you wana use*/
+            void insertHelper(Node*& root, const T& value, Node* parent, bool& isInserted) {
                 /* when the traversal crosses last valid node, that's the position where
                 the ext node should be.*/
                 if (root == nullptr)    {
-                    root->data = value;
+                    Node* newNode = new Node(value);
+                    root = newNode;
                     root->parent = parent;
                     return;
                 }
@@ -80,14 +105,16 @@ class Tree {
                 we move to left, else we move to right... if at any point 
                 given data is equal to node's data, its duplicate, cannot insert*/
                 if (value < root->data)
-                    insertHelper(root->left, value, root);
+                    insertHelper(root->left, value, root, isInserted);
                 else if (value > root->data)
-                    insertHelper(root->right, value, root);
+                    insertHelper(root->right, value, root, isInserted);
                 else {
                     std::cout << "Did not perform Insertion! Duplicate Data." << std::endl;
                     return;
                 }
             }
+
+            
 
             /*design note: the functin maintains a boolean value (isRemoved) so 
             that it can track how if the nde is deleted to decrease count (to be 
@@ -164,11 +191,45 @@ class Tree {
                 return node;
             }
 
+            /*level order traversal prints each level from left to right
+            idea: use a queue to hold the next level while printing the current one
+            for example, start manually from root, and then push its children in queue
+            so when you complete a level, you have next one in queue*/
+            void levelOrderHelper(Node* root) {
+                std::queue<Node*> q;
+                // manually pushing root to start
+                q.push(root);
+                while (!q.empty())    {
+                    int levelSize = q.size();
+                    while (levelSize--) {
+                        Node* current = q.front();
+                        q.pop();
+                        std::cout << current->data << " ";
 
-
-
+                        /*now check if none, one or two children exist and then put
+                        them in queue for next level's printing*/
+                        if (current->left)
+                            q.push(current->left);
+                        if (current->right)
+                            q.push(current->right);
+                    }
+                    std::cout << std::endl;
+                }
+                return;
+            }
 };
 
 int main()  {
+    Tree<int> BST;
+    BST.insert(10);
+    BST.insert(20);
+    BST.insert(30);
+    BST.insert(5);
+    BST.insert(15);
+    BST.insert(20);
+    BST.insert(13);
+    BST.insert(1);
+
+    BST.levelOrder();
     return 0;
 }
