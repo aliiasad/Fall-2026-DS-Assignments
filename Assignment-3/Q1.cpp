@@ -54,6 +54,8 @@ class Tree {
             void remove(const T& value) {
                 bool isRemoved = false;
                 root = removeHelper(root, value, isRemoved);
+                if (root != nullptr)
+                    root->parent = nullptr;      // new
                 if (isRemoved)
                     count--;
             }
@@ -109,6 +111,7 @@ class Tree {
                     Node* newNode = new Node(value);
                     root = newNode;
                     root->parent = parent;
+                    isInserted = true;  // for height balancing
                     return;
                 }
                 
@@ -123,6 +126,7 @@ class Tree {
                     std::cout << "Did not perform Insertion! Duplicate Data." << std::endl;
                     return;
                 }
+                root = rebalance(root); // checks for imbalance and rebalances
             }
 
             
@@ -199,7 +203,7 @@ class Tree {
                     if (node->right != nullptr)
                         node->right->parent = node;
                 }
-                return node;
+                return rebalance(node); // instead of returning node, first rebalance, then return
             }
 
             /*level order traversal prints each level from left to right
