@@ -21,12 +21,11 @@ class Tree {
                 int height;
 
                 // def. and para constructors for node
-                Node() : data(), left(nullptr), height(1),
-                right(nullptr), parent(nullptr) {}
+                Node() : data(), left(nullptr), right(nullptr), 
+                parent(nullptr), height(1) {}
 
-                Node(const T& value) : data(value), height(1),
-                left(nullptr), right(nullptr), 
-                parent(nullptr) {}
+                Node(const T& value) : data(value), left(nullptr), 
+                right(nullptr), parent(nullptr), height(1) {}
         };
 
         public:
@@ -335,7 +334,7 @@ class Tree {
                 int leftHeight = getHeight(node->left);
                 int rightHeight = getHeight(node->right);
 
-                return 1 + (leftHeight > rightHeight ? leftHeight : rightHeight);
+                node->height = 1 + (leftHeight > rightHeight ? leftHeight : rightHeight);
             }
 
             // simply the differnece of left and right height
