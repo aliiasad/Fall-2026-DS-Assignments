@@ -68,6 +68,7 @@ class Tree {
             // Node* minNode(Node* root);
             // void levelOrderHelper(Node* root);
             // Node* rotateLL(Node* node);
+            // Node* rotateRR(Node* node);
             // keep the prototypes commented out.. cpp doesnt allow prototyes in classes
             // if the actual func is also implemented inside class
 
@@ -248,6 +249,40 @@ class Tree {
                     node->parent->right = newTop;
 
                 newTop->right = node;
+                node->parent = newTop;
+
+                return newTop;
+            }
+
+            /*Design Note: the right rotation's working is described as when the node 
+            is rotated, the right node of the primary node becomes new top whereas the
+            right node of primary node points to the left node of new top node. Then
+            check if that new top had a left side, if yes then make pr node the parent of 
+            its left side. Now make pr node's parent new top's parent
+            Then check if the pr node had a parent, if no, assign new top to root
+            , if it was left child of its own parent, then make new top left child of pr 
+            node's parent and else right. Now, finally assign node to new top's left
+            and make new top node's parent*/
+            Node* rotateRR(Node* node)  {
+                if (node == nullptr || node->right == nullptr)
+                    return node;
+                
+                Node* newTop = node->right;
+                node->right = newTop->left;
+
+                if (newTop->left != nullptr)
+                    newTop->left->parent = node;
+
+                newTop->parent = node->parent;
+
+                if (node->parent == nullptr)
+                    root = newTop;
+                else if (node->parent->left == node)
+                    node->parent->left = newTop;
+                else
+                    node->parent->right = newTop;
+
+                newTop->left = node;
                 node->parent = newTop;
 
                 return newTop;
