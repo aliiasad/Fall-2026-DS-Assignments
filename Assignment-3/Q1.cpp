@@ -69,6 +69,8 @@ class Tree {
             // void levelOrderHelper(Node* root);
             // Node* rotateLL(Node* node);
             // Node* rotateRR(Node* node);
+            // Node* rotateRL(Node* node);
+            // Node* rotateLR(Node* node);
             // keep the prototypes commented out.. cpp doesnt allow prototyes in classes
             // if the actual func is also implemented inside class
 
@@ -287,6 +289,26 @@ class Tree {
 
                 return newTop;
             }
+
+            /*simply rotate pivot's right node LL and then pivot RR*/
+            Node* rotateRL(Node* node)  {
+                if (node == nullptr || node->right == nullptr)
+                    return node;
+
+                node->right = rotateLL(node->right);
+                return rotateRR(node);
+            }
+
+            /*simply rotate pivot's left node RR and then pivot LL*/
+            Node* rotateLR(Node* node)   {
+                if (node == nullptr || node->left == nullptr)
+                    return node;
+
+                node->left = rotateRR(node->left);
+                return rotateLL(node);
+            }
+
+
 };
 
 int main()  {
