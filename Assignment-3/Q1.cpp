@@ -60,6 +60,10 @@ class Tree {
                 return;
             }
 
+            ~Tree() { 
+                destroyHelper(root);
+            }
+
 
             // (required helpers which access private data that cannot be 
             // sent by the main())
@@ -80,14 +84,10 @@ class Tree {
             // to be used in remove node logic
             Node* minNode(Node* root)   {
                 // the minimum node is the left most node of the tree
-                if (root == nullptr)
-                    return nullptr;
-                
-                if (root->left == nullptr)
-                    return root;
-                
-                if (root != nullptr && root->left != nullptr)    
-                    return minNode(root->left);
+                if (root == nullptr || root->left == nullptr)
+                    return root;    
+
+                return minNode(root->left);
             }
 
             
@@ -110,7 +110,7 @@ class Tree {
                 given data is equal to node's data, its duplicate, cannot insert*/
                 if (value < root->data)
                     insertHelper(root->left, value, root, isInserted);
-                else if (value > root->data)
+                else if (root->data < value)
                     insertHelper(root->right, value, root, isInserted);
                 else {
                     std::cout << "Did not perform Insertion! Duplicate Data." << std::endl;
@@ -200,6 +200,9 @@ class Tree {
             for example, start manually from root, and then push its children in queue
             so when you complete a level, you have next one in queue*/
             void levelOrderHelper(Node* root) {
+                if (root == nullptr)
+                    return;
+                
                 std::queue<Node*> q;
                 // manually pushing root to start
                 q.push(root);
@@ -308,7 +311,12 @@ class Tree {
                 return rotateLL(node);
             }
 
-
+            void destroyHelper(Node* node) {
+                if (node == nullptr) return;
+                destroyHelper(node->left);
+                destroyHelper(node->right);
+                delete node;
+            }
 };
 
 int main()  {
