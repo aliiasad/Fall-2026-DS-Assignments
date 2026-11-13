@@ -64,6 +64,14 @@ class Tree {
                 return;
             }
 
+            void print() {
+                printHelper(root);
+            }
+
+            int treeHeight() {
+                return getHeight(root);
+            }
+
             ~Tree() { 
                 destroyHelper(root);
             }
@@ -205,34 +213,57 @@ class Tree {
                 return rebalance(node); // instead of returning node, first rebalance, then return
             }
 
-            /*level order traversal prints each level from left to right
-            idea: use a queue to hold the next level while printing the current one
-            for example, start manually from root, and then push its children in queue
-            so when you complete a level, you have next one in queue*/
-            void levelOrderHelper(Node* root) {
-                if (root == nullptr)
+            void printHelper(Node* node) {
+                if (node == nullptr)
                     return;
-                
+
                 std::queue<Node*> q;
-                // manually pushing root to start
-                q.push(root);
-                while (!q.empty())    {
+                q.push(node);
+                int level = 0;
+
+                while (!q.empty())  {
                     int levelSize = q.size();
+                    std::cout << "Level " << level << ": ";
+
                     while (levelSize--) {
                         Node* current = q.front();
                         q.pop();
-                        std::cout << current->data << " ";
+                        std::cout << current->data << "(" << balanceFactor(current) << ") ";
 
-                        /*now check if none, one or two children exist and then put
-                        them in queue for next level's printing*/
                         if (current->left)
                             q.push(current->left);
                         if (current->right)
                             q.push(current->right);
                     }
                     std::cout << std::endl;
+                    level++;
                 }
-                return;
+            }
+
+            /*level order traversal prints each level from left to right
+            idea: use a queue to hold the next level while printing the current one
+            for example, start manually from root, and then push its children in queue
+            so when you complete a level, you have next one in queue*/
+            void levelOrderHelper(Node* root) {
+                std::cout << "Level-order traversal: ";
+                if (root == nullptr) {
+                    std::cout << std::endl;
+                    return;
+                }
+                
+                std::queue<Node*> q;
+                q.push(root);
+                while (!q.empty())    {
+                    Node* current = q.front();
+                    q.pop();
+                    std::cout << current->data << " ";
+
+                    if (current->left)
+                        q.push(current->left);
+                    if (current->right)
+                        q.push(current->right);
+                }
+                std::cout << std::endl;
             }
 
             /*Design Note: the left rotation's working is described as when the node 
@@ -358,17 +389,31 @@ class Tree {
                 if (balanceFactor(node) > 1)    {
                     // if left heavy and left node's subtree is also 
                     // left heavy then LL
-                    if (balanceFactor(node->left) >= 0)
+                    if (balanceFactor(node->left) >= 0) {
+                        std::cout << "Rotation LL at " << node->data
+                        << ": right-rotate(" << node->data << ")" << std::endl;
                         newTop = rotateLL(node);
-                    else    // if not lrft after left, then must be right after left
+                    }
+                    else  {  // if not lrft after left, then must be right after left
+                        std::cout << "Rotation LR at " << node->data
+                        << ": left-rotate(" << node->left->data
+                        << "), right-rotate(" << node->data << ")" << std::endl;
                         newTop = rotateLR(node);
+                    }
                 }
                 else if (balanceFactor(node) < -1)  {
                     // if right heavy and right subtree also right heavy
-                    if (balanceFactor(node->right) <= 0)
+                    if (balanceFactor(node->right) <= 0)    {
+                        std::cout << "Rotation RR at " << node->data
+                        << ": left-rotate(" << node->data << ")" << std::endl;
                         newTop = rotateRR(node);
-                    else // if not right after right, then left after right
+                    }
+                    else {// if not right after right, then left after right
+                        std::cout << "Rotation RL at " << node->data
+                        << ": right-rotate(" << node->right->data
+                        << "), left-rotate(" << node->data << ")" << std::endl;
                         newTop = rotateRL(node);
+                    }
                 }
                 else    // no rotation
                     return node;
@@ -389,13 +434,29 @@ class Tree {
 
 int main()  {
     Tree<int> tree;
-    tree.insert(30);
-    tree.insert(20);
-    tree.insert(40);
-    tree.insert(10);
-    tree.insert(25);
-    tree.insert(5); 
 
+    std::cout << "Insert 30" << std::endl;
+    tree.insert(30);
+    tree.print();
+
+    std::cout << "\nInsert 10" << std::endl;
+    tree.insert(10);
+    tree.print();
+
+    std::cout << "\nInsert 20" << std::endl;
+    tree.insert(20);
+    tree.print();
+
+    std::cout << "\nInsert 40" << std::endl;
+    tree.insert(40);
+    tree.print();
+
+    std::cout << "\nDelete 10" << std::endl;
+    tree.remove(10);
+    tree.print();
+
+    std::cout << std::endl;
     tree.levelOrder();
+    std::cout << "Height of tree: " << tree.treeHeight() << std::endl;
     return 0;
 }
