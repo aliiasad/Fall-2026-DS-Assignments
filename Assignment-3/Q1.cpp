@@ -17,11 +17,14 @@ class Tree {
                 Node* right;
                 Node* parent;
 
+                // height specifier for rebalancing
+                int height;
+
                 // def. and para constructors for node
-                Node() : data(), left(nullptr), 
+                Node() : data(), left(nullptr), height(1),
                 right(nullptr), parent(nullptr) {}
 
-                Node(const T& value) : data(value), 
+                Node(const T& value) : data(value), height(1),
                 left(nullptr), right(nullptr), 
                 parent(nullptr) {}
         };
@@ -75,6 +78,10 @@ class Tree {
             // Node* rotateRR(Node* node);
             // Node* rotateRL(Node* node);
             // Node* rotateLR(Node* node);
+            // int getHeight(Node* node);
+            // void updateHeight(Node* node);
+            // int balanceFactor(Node* node);
+            // Node* rebalance(Node* node);
             // keep the prototypes commented out.. cpp doesnt allow prototyes in classes
             // if the actual func is also implemented inside class
 
@@ -248,7 +255,7 @@ class Tree {
 
                 if (node->parent == nullptr)
                     root = newTop;
-                else if (node->parent->left == node)    
+                else if (node->parent->left == node)
                     node->parent->left = newTop;
                 else
                     node->parent->right = newTop;
@@ -309,6 +316,64 @@ class Tree {
 
                 node->left = rotateRR(node->left);
                 return rotateLL(node);
+            }
+
+
+            int getHeight(Node* node)   {
+                return ((node == nullptr) ? 0 : node->height);
+            }
+
+            // traverse to the most deep node and add 1 for root
+            void updateHeight(Node* node) {
+                if (node == nullptr)
+                    return;
+
+                int leftHeight = getHeight(node->left);
+                int rightHeight = getHeight(node->right);
+
+                return 1 + (leftHeight > rightHeight ? leftHeight : rightHeight);
+            }
+
+            // simply the differnece of left and right height
+            int balanceFactor(Node* node)   {
+                if (node == nullptr)
+                    return 0;
+
+                return getHeight(node->left) - getHeight(node->right);
+            }
+
+            Node* rebalance(Node* node) {
+                if (node == nullptr)
+                    return nullptr;
+
+                // since rebalance is called, insertion or deletion must have 
+                // happened, so update height first
+                updateHeight(node);
+                Node* newTop;
+
+                // if bf is > 1, then left heavy
+                if (balanceFactor(node) > 1)    {
+                    // if left heavy and left node's subtree is also 
+                    // left heavy then LL
+                    if (balanceFactor(node->left) >= 0)
+                        newTop = rotateLL(node);
+                    else    // if not lrft after left, then must be right after left
+                        newTop = rotateLR(node);
+                }
+                else if (balanceFactor(node) < -1)  {
+                    // if right heavy and right subtree also right heavy
+                    if (balanceFactor(node->right) <= 0)
+                        newTop = rotateRR(node);
+                    else // if not right after right, then left after right
+                        newTop = rotateRL(node);
+                }
+                else    // no rotation
+                    return node;
+
+                updateHeight(newTop->left);
+                updateHeight(newTop->right);
+                updateHeight(newTop);
+                return newTop;
             }
 
             void destroyHelper(Node* node) {
