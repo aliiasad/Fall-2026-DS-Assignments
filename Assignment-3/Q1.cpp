@@ -67,6 +67,7 @@ class Tree {
             // Node* removeHelper(Node* root, const T& value, bool& isRemoved);
             // Node* minNode(Node* root);
             // void levelOrderHelper(Node* root);
+            // Node* rotateLL(Node* node);
             // keep the prototypes commented out.. cpp doesnt allow prototyes in classes
             // if the actual func is also implemented inside class
 
@@ -217,19 +218,51 @@ class Tree {
                 }
                 return;
             }
+
+            /*Design Note: the left rotation's working is described as when the node 
+            is rotated, the left node of the primary node becomes new top whereas the
+            left node of primary node points to the right node of new top node. Then
+            check if that new top had a right side, if yes then make pr node the parent of 
+            its right side. Now make pr node's parent new top's parent
+            Then check of te pr node had a parent, if no, assign new top to root
+            , if it was left child of its own parent, then make new top left child of pr 
+            node's parent and else right. Now, finally assign node to new top's right
+            and make new top node's parent*/
+            Node* rotateLL(Node* node)  {
+                if (node == nullptr || node->left == nullptr)
+                    return node;
+
+                Node* newTop = node->left;
+                node->left = newTop->right;
+
+                if (newTop->right != nullptr)
+                    newTop->right->parent = node;
+                
+                newTop->parent = node->parent;
+
+                if (node->parent == nullptr)
+                    root = newTop;
+                else if (node->parent->left == node)    
+                    node->parent->left = newTop;
+                else
+                    node->parent->right = newTop;
+
+                newTop->right = node;
+                node->parent = newTop;
+
+                return newTop;
+            }
 };
 
 int main()  {
-    Tree<int> BST;
-    BST.insert(10);
-    BST.insert(20);
-    BST.insert(30);
-    BST.insert(5);
-    BST.insert(15);
-    BST.insert(20);
-    BST.insert(13);
-    BST.insert(1);
+    Tree<int> tree;
+    tree.insert(30);
+    tree.insert(20);
+    tree.insert(40);
+    tree.insert(10);
+    tree.insert(25);
+    tree.insert(5); 
 
-    BST.levelOrder();
+    tree.levelOrder();
     return 0;
 }
