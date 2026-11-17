@@ -69,9 +69,27 @@ class ControlRoom   {
 
         };
 
+        // kinda node for ambulance unit
         class Unit  {
             public:
-        
+                int unitID;
+                int freeAt;
+
+                // similar as above.. tracker / pointer for it sown location on heap
+                int heapIndex;
+
+                // def. and para. constructors
+                Unit() : unitID(0), freeAt(0), heapIndex(-1) {}
+
+                Unit(int id, int free) : unitID(id), freeAt(free) {}
+
+                // earliest free unit wins, tie -> smaller unit id wins
+                bool freesEarlier(Unit* a, Unit* b) {
+                    if (a->freeAt != b->freeAt)
+                        return a->freeAt < b->freeAt;
+                        
+                    return a->unitID < b->unitID;
+                }
         };
 
         class UnitHeap  {
