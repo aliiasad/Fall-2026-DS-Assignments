@@ -50,7 +50,8 @@ class ControlRoom   {
                     return (effSev > 5) ? 5 : effSev;
                 }
 
-                bool moreUrgent (Incident* x, Incident* y)  {
+                // did it static since it has to be called outside this private class
+                static bool moreUrgent (Incident* x, Incident* y)  {
                     if (x->effectiveSeverity() != y->effectiveSeverity())
                         return x->effectiveSeverity() > y->effectiveSeverity();
 
@@ -64,8 +65,295 @@ class ControlRoom   {
                 }
         };
 
+        /*design note: the dispatch heap is a MAX heap (most urgent incident on
+        top) and the shed heap is a MIN heap (least urgent incident on top),
+        both measured by urgency. Apart from that, their logic (sift up, sift
+        down, insert, remove) is exactly the same. So instead of writing a max
+        heap class and a min heap class, one class does both, and a boolean
+        (isMinHeap) decides which one an object is:
+        isMinHeap = false -> max heap (dispatch), writes heapIndex of the incident
+        isMinHeap = true  -> min heap (shed), writes shedIndex of the incident
+        Like a normal priority queue there are four sift functions, incUp and
+        incDown for the min heap, decUp and decDown for the max heap. The only
+        difference from a plain priority queue is that "smaller" and "bigger"
+        are not < and > on numbers, they are isLess() and isGreater() which use
+        the four field urgency rule, and every swap also updates the positions
+        remembered inside the incidents.
+        The heap stores raw pointers in a raw array (Incident** arr, made with
+        new[]). Swapping moves only these pointers, never the incident objects.
+        It does NOT own the incident nodes (both heaps point to the same nodes,
+        so deleting from here would double delete), the control room deletes
+        the nodes.*/
         class IncidentHeap  {
             public:
+                Incident** arr;
+                int size;
+                int capacity;
+                bool isMinHeap; // true for Min Heap (least urgent on top),
+                                // false for Max Heap (most urgent on top)
+
+                // "smaller" means LESS urgent and "bigger" means MORE urgent
+                bool isLess(Incident* a, Incident* b) {
+                    return Incident::moreUrgent(b, a);
+                }
+
+                bool isGreater(Incident* a, Incident* b) {
+                    return Incident::moreUrgent(a, b);
+                }
+
+                // reads/writes the position field that belongs to this heap
+                int getIndex(Incident* node) {
+                    return (isMinHeap ? node->shedIndex : node->heapIndex);
+                }
+
+                void setIndex(Incident* node, int index)  {
+                    if (isMinHeap)
+                        node->shedIndex = index;
+                    else
+                        node->heapIndex = index;
+                }
+
+                /*every time a pointer is put in the array, its position field
+                is updated right there, so positions are correct after every
+                swap, not just at some places*/
+                void place(int index, Incident* node)   {
+                    arr[index] = node;
+                    setIndex(node, index);
+                }
+
+                void swapNodes(int i, int j)    {
+                    Incident* temp = arr[i];
+                    place(i, arr[j]);
+                    place(j, temp);
+                }
+
+                // min heap: push the node down while a child is smaller (less urgent)
+                void incDown(int currParent) {
+                    int smallest = currParent;
+                    int leftChild = 2 * currParent + 1;
+                    int rightChild = 2 * currParent + 2;
+
+                    if (leftChild < size && isLess(arr[leftChild], arr[smallest]))
+                        smallest = leftChild;
+
+                    if (rightChild < size && isLess(arr[rightChild], arr[smallest]))
+                        smallest = rightChild;
+
+                    if (smallest != currParent) {
+                        swapNodes(smallest, currParent);
+                        incDown(smallest);
+                    }
+                }
+
+                // max heap: push the node down while a child is larger (more urgent)
+                void decDown(int currParent) {
+                    int largest = currParent;
+                    int leftChild = 2 * currParent + 1;
+                    int rightChild = 2 * currParent + 2;
+
+                    if (leftChild < size && isGreater(arr[leftChild], arr[largest]))
+                        largest = leftChild;
+
+                    if (rightChild < size && isGreater(arr[rightChild], arr[largest]))
+                        largest = rightChild;
+
+                    if (largest != currParent) {
+                        swapNodes(largest, currParent);
+                        decDown(largest);
+                    }
+                }
+
+                // min heap: pull the node up while it is smaller than its parent
+                void incUp(int idx) {
+                    if (idx <= 0)
+                        return;
+
+                    int parent = (idx - 1) / 2;
+                    if (isLess(arr[idx], arr[parent])) {
+                        swapNodes(idx, parent);
+                        incUp(parent);
+                    }
+                }
+
+                // max heap: pull the node up while it is larger than its parent
+                void decUp(int idx) {
+                    if (idx <= 0)
+                        return;
+
+                    int parent = (idx - 1) / 2;
+                    if (isGreater(arr[idx], arr[parent])) {
+                        swapNodes(idx, parent);
+                        decUp(parent);
+                    }
+                }
+
+                // para constructor, raw array of pointers made here
+                IncidentHeap(int maxSize, bool minHeap = true) {
+                    capacity = maxSize;
+                    size = 0;
+                    isMinHeap = minHeap;
+                    arr = new Incident*[capacity];
+                    for (int i = 0; i < capacity; i++)
+                        arr[i] = nullptr;
+                }
+
+                // heaps hold raw memory, so copying is blocked (shallow copy = double delete)
+                IncidentHeap(const IncidentHeap&) = delete;
+                IncidentHeap& operator=(const IncidentHeap&) = delete;
+
+                ~IncidentHeap() {
+                    delete[] arr;   // only the pointer array, not the nodes
+                }
+
+                bool isEmpty() const {
+                    return size == 0;
+                }
+
+                bool isFull() const {
+                    return size == capacity;
+                }
+
+                int getSize() const {
+                    return size;
+                }
+
+                void makeEmpty() {
+                    for (int i = 0; i < size; i++)  {
+                        setIndex(arr[i], -1);
+                        arr[i] = nullptr;
+                    }
+                    size = 0;
+                }
+
+                Incident* top() {
+                    return (size == 0 ? nullptr : arr[0]);
+                }
+
+                // put at the end, then sift up (min or max version) -> O(log n)
+                void enqueue(Incident* value) {
+                    if (value == nullptr)
+                        return;
+                    if (isFull()) {
+                        std::cout << "Queue overflow\n";
+                        return;
+                    }
+                    place(size, value);
+                    if (isMinHeap) {
+                        incUp(size);
+                    } else {
+                        decUp(size);
+                    }
+                    size++;
+                }
+
+                // takes out the top (most urgent for max heap, least urgent for min heap)
+                void dequeue(Incident*& result) {
+                    if (isEmpty()) {
+                        std::cout << "Queue underflow\n";
+                        return;
+                    }
+                    result = arr[0];
+                    removeAt(0);
+                }
+
+                /*design note: removal of ANY position (not only the top).
+                last element comes and sits on the hole. Now that element is a
+                stranger in that place, so it may need to go up OR down:
+                up   -> if hole was in a different branch and the last one is
+                        better than the hole's parent
+                down -> if it is worse than the hole's children
+                exactly one of the two will actually move, never both.*/
+                void removeAt(int index)    {
+                    if (index < 0 || index >= size)
+                        return;
+
+                    Incident* removed = arr[index];
+                    setIndex(removed, -1);      // not in this heap anymore
+                    size--;
+
+                    // if we removed the last element, nothing to fill
+                    if (index == size)  {
+                        arr[size] = nullptr;
+                        return;
+                    }
+
+                    place(index, arr[size]);
+                    arr[size] = nullptr;
+                    fix(index);
+                }
+
+                /*called when the priority of the node at index has changed
+                (escalate / aging). we dont know the direction, so we check
+                the parent: if it beats its parent -> up, else try down*/
+                void fix(int index) {
+                    if (index < 0 || index >= size)
+                        return;
+
+                    bool goUp = false;
+                    if (index > 0)  {
+                        int parent = (index - 1) / 2;
+                        if (isMinHeap)
+                            goUp = isLess(arr[index], arr[parent]);
+                        else
+                            goUp = isGreater(arr[index], arr[parent]);
+                    }
+
+                    if (goUp)   {
+                        if (isMinHeap)
+                            incUp(index);
+                        else
+                            decUp(index);
+                    }
+                    else    {
+                        if (isMinHeap)
+                            incDown(index);
+                        else
+                            decDown(index);
+                    }
+                }
+
+                // prints in array order and then level by level
+                void print() {
+                    if (size == 0)  {
+                        std::cout << "Heap array: empty" << std::endl;
+                        return;
+                    }
+
+                    std::cout << "Heap array:";
+                    for (int i = 0; i < size; i++)
+                        std::cout << " " << arr[i]->incidentID << "(S" << arr[i]->effectiveSeverity() << ")";
+                    std::cout << std::endl;
+
+                    // level 0 has 1 node, level 1 has 2, level 2 has 4 ... (doubles)
+                    int level = 0;
+                    int first = 0;
+                    int levelCount = 1;
+                    while (first < size)    {
+                        std::cout << "Level " << level << ": ";
+                        for (int i = first; i < first + levelCount && i < size; i++)    {
+                            if (i > first)
+                                std::cout << ", ";
+                            std::cout << arr[i]->incidentID << "(S" << arr[i]->effectiveSeverity() << ")";
+                        }
+                        std::cout << std::endl;
+                        first += levelCount;
+                        levelCount *= 2;
+                        level++;
+                    }
+                }
+
+                // only the board line of showStatus() uses this (array order)
+                void printArrayOrder() {
+                    if (size == 0)  {
+                        std::cout << "empty";
+                        return;
+                    }
+                    for (int i = 0; i < size; i++)  {
+                        if (i > 0)
+                            std::cout << " ";
+                        std::cout << arr[i]->incidentID << "(S" << arr[i]->effectiveSeverity() << ")";
+                    }
+                }
 
         };
 
@@ -84,16 +372,247 @@ class ControlRoom   {
                 Unit(int id, int free) : unitID(id), freeAt(free) {}
 
                 // earliest free unit wins, tie -> smaller unit id wins
-                bool freesEarlier(Unit* a, Unit* b) {
+                // did static so it can be used outside this class (same as above)
+                static bool freesEarlier(Unit* a, Unit* b) {
                     if (a->freeAt != b->freeAt)
                         return a->freeAt < b->freeAt;
-                        
+
                     return a->unitID < b->unitID;
                 }
         };
 
+        /*design note: the unit heap is a MIN heap, where "smaller" means "becomes
+        free earlier" (tie -> smaller unitID), so the unit that can leave first
+        is always on top. It uses the same priority queue logic as the incident
+        heap, enqueue/dequeue on top of incUp/incDown, but only the min heap
+        versions are needed (there is no max heap of units), so there is no
+        isMinHeap flag and no decUp/decDown here, they would be dead code.
+        Two differences from the incident heap:
+        1) a unit lives in only ONE heap, so there is one position (heapIndex)
+           and this heap OWNS its units (it deletes them in the destructor and
+           in makeEmpty), unlike the incident heap which only borrows pointers.
+        2) after a dispatch the top unit's freeAt grows, so its place has to be
+           fixed (fix()). It can only sink, but fix() checks both directions
+           the same way as the incident heap.
+        showStatus needs the units in chosen order WITHOUT changing the real
+        heap, so printSorted() works on a temporary copy of the pointer array
+        and uses incDownCopy(), a version of incDown that never touches
+        heapIndex (swapNodes/place would overwrite the real positions).*/
         class UnitHeap  {
+            private:
+                Unit** arr;
+                int size;
+                int capacity;
+
+                // "smaller" unit = the one that becomes free earlier
+                bool isLess(Unit* a, Unit* b) {
+                    return Unit::freesEarlier(a, b);
+                }
+
+                // every time a pointer is put in the array, 
+                // its heapIndex is updated right there
+                void place(int index, Unit* node)   {
+                    arr[index] = node;
+                    node->heapIndex = index;
+                }
+
+                void swapNodes(int i, int j)    {
+                    Unit* temp = arr[i];
+                    place(i, arr[j]);
+                    place(j, temp);
+                }
+
+                // min heap: push the node down while a child is smaller
+                void incDown(int currParent) {
+                    int smallest = currParent;
+                    int leftChild = 2 * currParent + 1;
+                    int rightChild = 2 * currParent + 2;
+
+                    if (leftChild < size && isLess(arr[leftChild], arr[smallest]))
+                        smallest = leftChild;
+
+                    if (rightChild < size && isLess(arr[rightChild], arr[smallest]))
+                        smallest = rightChild;
+
+                    if (smallest != currParent) {
+                        swapNodes(smallest, currParent);
+                        incDown(smallest);
+                    }
+                }
+
+                // min heap: pull the node up while it is smaller than its parent
+                void incUp(int idx) {
+                    if (idx <= 0)
+                        return;
+
+                    int parent = (idx - 1) / 2;
+                    if (isLess(arr[idx], arr[parent])) {
+                        swapNodes(idx, parent);
+                        incUp(parent);
+                    }
+                }
+
+                // same as incDown but on a temporary copy, so NO heapIndex is touched
+                void incDownCopy(Unit** copy, int n, int currParent) {
+                    int smallest = currParent;
+                    int leftChild = 2 * currParent + 1;
+                    int rightChild = 2 * currParent + 2;
+
+                    if (leftChild < n && isLess(copy[leftChild], copy[smallest]))
+                        smallest = leftChild;
+
+                    if (rightChild < n && isLess(copy[rightChild], copy[smallest]))
+                        smallest = rightChild;
+
+                    if (smallest != currParent) {
+                        Unit* temp = copy[smallest];
+                        copy[smallest] = copy[currParent];
+                        copy[currParent] = temp;
+                        incDownCopy(copy, n, smallest);
+                    }
+                }
+
             public:
+                // para constructor, raw array of pointers made here
+                UnitHeap(int maxSize) {
+                    capacity = maxSize;
+                    size = 0;
+                    arr = new Unit*[capacity];
+                    for (int i = 0; i < capacity; i++)
+                        arr[i] = nullptr;
+                }
+
+                // heaps hold raw memory, so copying is blocked (shallow copy = double delete)
+                UnitHeap(const UnitHeap&) = delete;
+                UnitHeap& operator=(const UnitHeap&) = delete;
+
+                // this heap owns its units, so it frees them here
+                ~UnitHeap() {
+                    for (int i = 0; i < size; i++)
+                        delete arr[i];
+                    delete[] arr;
+                }
+
+                bool isEmpty() const {
+                    return size == 0;
+                }
+
+                bool isFull() const {
+                    return size == capacity;
+                }
+
+                int getSize() const {
+                    return size;
+                }
+
+                // owner heap, so emptying it must free the units too (else they leak)
+                void makeEmpty() {
+                    for (int i = 0; i < size; i++)  {
+                        delete arr[i];
+                        arr[i] = nullptr;
+                    }
+                    size = 0;
+                }
+
+                Unit* top() {
+                    return (size == 0 ? nullptr : arr[0]);
+                }
+
+                /*the unit pool is tiny and addUnit has no time requirement,
+                so a plain scan is fine for checking duplicates*/
+                bool exists(int unitID) {
+                    for (int i = 0; i < size; i++)  {
+                        if (arr[i]->unitID == unitID)
+                            return true;
+                    }
+                    return false;
+                }
+
+                // put at the end, then sift up -> O(log n)
+                void enqueue(Unit* value) {
+                    if (value == nullptr)
+                        return;
+                    if (isFull()) {
+                        std::cout << "Queue overflow\n";
+                        return;
+                    }
+                    place(size, value);
+                    incUp(size);
+                    size++;
+                }
+
+                /*takes out the earliest free unit. the caller gets the pointer
+                and becomes the owner of that unit (it is no longer in the heap)*/
+                void dequeue(Unit*& result) {
+                    if (isEmpty()) {
+                        std::cout << "Queue underflow\n";
+                        return;
+                    }
+                    result = arr[0];
+                    result->heapIndex = -1;
+                    size--;
+
+                    if (size > 0)   {
+                        place(0, arr[size]);
+                        arr[size] = nullptr;
+                        incDown(0);
+                    }
+                    else
+                        arr[0] = nullptr;
+                }
+
+                /*called when the freeAt of the unit at index has changed
+                (after a dispatch). we dont know the direction, so we check
+                the parent: if it is smaller than its parent -> up, else down*/
+                void fix(int index) {
+                    if (index < 0 || index >= size)
+                        return;
+
+                    if (index > 0 && isLess(arr[index], arr[(index - 1) / 2]))
+                        incUp(index);
+                    else
+                        incDown(index);
+                }
+
+                // prints earliest free first by extracting from a temporary copy
+                void printSorted() {
+                    if (size == 0)  {
+                        std::cout << "none";
+                        return;
+                    }
+
+                    Unit** copy = new Unit*[size];
+                    for (int i = 0; i < size; i++)
+                        copy[i] = arr[i];       // the copy of a valid heap is a valid heap
+
+                    int n = size;
+                    bool firstPrinted = true;
+                    while (n > 0)   {
+                        if (!firstPrinted)
+                            std::cout << ", ";
+                        firstPrinted = false;
+
+                        std::cout << "Unit " << copy[0]->unitID << " (free at " << copy[0]->freeAt << ")";
+
+                        // extract: last goes to top, then sift down (on the copy only)
+                        copy[0] = copy[n - 1];
+                        n--;
+                        incDownCopy(copy, n, 0);
+                    }
+                    delete[] copy;
+                }
+
+                // all units in array order (for the print function of the class)
+                void print() {
+                    if (size == 0)  {
+                        std::cout << "Unit heap array: empty" << std::endl;
+                        return;
+                    }
+                    std::cout << "Unit heap array:";
+                    for (int i = 0; i < size; i++)
+                        std::cout << " " << arr[i]->unitID << "(free " << arr[i]->freeAt << ")";
+                    std::cout << std::endl;
+                }
         };
 };
 
