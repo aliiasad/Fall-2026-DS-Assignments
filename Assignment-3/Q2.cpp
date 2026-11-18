@@ -715,8 +715,45 @@ class ControlRoom   {
             }
 
             Incident* newIncident = new Incident (incidentID, severity, arrivalTime, dueTime,
-            travel); 
-        }
+            travel);
+
+            // above is Part A logic handled
+            // now according to the board rules, if the newest w has a priority more than the
+            // least important one, we push it in heap and fix it then.. else it is simply rejected
+            
+            // if w has more priority than taht of the least prior incident, then the least prior
+            // incident is shed (not completely removed)
+            if (dispatchHeap.isFull())  {
+                Incident* w = shedHeap.top();
+
+                if (w != nullptr && Incident::moreUrgent(newIncident, w)) {
+                    std::cout << "Board full: Incident " << w->incidentID
+                    << " (S" << w->effectiveSeverity() << ") shed to make room. ";
+                    removeFromBoard(w);
+                    shed++;
+                }
+                else {
+                    // never stored, id stays free... used not touched as spec says
+                    if (w != nullptr) {
+                        std::cout << "ERROR [BoardFull]: Incident " << incidentID
+                        << " (S" << newIncident->effectiveSeverity() << ") is less urgent than the least urgent waiting incident "
+                        << w->incidentID << " (S" << w->effectiveSeverity()
+                        << "); not accepted." << std::endl;
+                    }
+                    else {
+                        std::cout << "ERROR [BoardFull]: Incident " << incidentID
+                        << " cannot be stored; the board has no room." << std::endl;
+                    }
+                    rejected++;
+                    delete newIncident;
+                    return;
+                }
+            }
+
+            addToBoard(newIncident);
+            used[incidentID] = true;
+            std::cout << "Incident " << incidentID << " accepted." << std::endl;
+            }
 
     public:
 };
