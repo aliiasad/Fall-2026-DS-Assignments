@@ -614,6 +614,111 @@ class ControlRoom   {
                     std::cout << std::endl;
                 }
         };
+        int capacity;
+        int maxUnits;
+
+        IncidentHeap dispatchHeap;
+        IncidentHeap shedHeap;
+        UnitHeap unitHeap;
+
+        // counters and showStatus
+        int dispatched;
+        int missed;
+        int shed;
+        int cancelled;
+        int rejected;
+
+        Incident* byID[1000];
+        /*ids are from 1 to 999, so the incident is found from its id directly
+        in O(1) with an array of node pointers indexed by id. nullptr means the
+        incident is not on the board. We never search the heap array for an id*/
+        bool used[1000];
+
+        // private helpers to add and remove
+
+        void addToBoard(Incident* node) {
+            dispatchHeap.enqueue(node);
+            shedHeap.enqueue(node);
+            byID[node->incidentID] = node;
+        }
+        
+        void removeFromBoard(Incident* node)    {
+            dispatchHeap.dequeue(node);
+            shedHeap.dequeue(node);
+            byID[node->incidentID] = nullptr;
+            delete node;
+        }
+
+        void fixBothHeaps(Incident* node) {
+            dispatchHeap.fix(node->heapIndex);
+            shedHeap.fix(node->shedIndex);
+        }
+
+        // para. constructor
+        ControlRoom(int capacity, int maxUnits) :
+        capacity(capacity > 0 ? capacity : 1), maxUnits(maxUnits > 0 ? maxUnits : 0),
+        dispatchHeap(capacity > 0 ? capacity : 1, false), 
+        shedHeap(capacity > 0 ? capacity : 1, true), unitHeap(maxUnits > 0 ? maxUnits : 0),
+        dispatched(0), missed(0), shed(0), cancelled(0), rejected(0) {
+            for (int i = 0; i < 1000; i++)  {
+                byID[i] = nullptr;
+                used[i] = false;
+            }
+        }
+
+        // // a control room owns raw memory, so it must not be copied
+        // ControlRoom(const ControlRoom&) = delete;
+        // ControlRoom& operator=(const ControlRoom&) = delete;
+
+        /*PART A + PART D: validates in the exact order of the spec, and
+        then either inserts, sheds the least urgent one to make room, or
+        rejects. A rejected report leaves everything unchanged, so the node is
+        only created after all validation, and is deleted if rejected later.*/
+
+        void reportIncident(int incidentID, int severity, int arrivalTime, int dueTime,
+        int travel)   {
+            if (incidentID > 999 || incidentID < 1) {
+                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
+                "is outside the bounds 1 to 999." << std::endl;
+                return;
+            }
+
+            if (used[incidentID])   {
+                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
+                " already exists." << std::endl;
+                return;
+            }
+            
+            if (severity > 5 || severity < 1)   {
+                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
+                " has severity " << severity << "(must  be 1 to 5)" << std:: endl;
+                return;
+            }
+
+            if (arrivalTime < 0)    {
+                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
+                " has an arrival time less than 0 (must be greater than zero)." << std::endl;
+                return;
+            }
+
+            if (dueTime < arrivalTime)  {
+                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID << 
+                " has due time " << dueTime << ", which is not after arrival time" << arrivalTime
+                << "." << std::endl;
+                return;
+            }
+
+            if (travel <= 0)    {
+                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
+                " has a travel time " << travel << "which is less than 0." << std::endl;
+                return; 
+            }
+
+            Incident* newIncident = new Incident (incidentID, severity, arrivalTime, dueTime,
+            travel); 
+        }
+
+    public:
 };
 
 int main()  {
