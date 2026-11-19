@@ -649,6 +649,12 @@ class ControlRoom   {
             delete node;
         }
 
+        Incident* findOnBoard(int incidentID)   {
+            if (incidentID < 1 || incidentID > 999)
+                return nullptr;
+            return byID[incidentID];
+        }
+
         void fixBothHeaps(Incident* node) {
             dispatchHeap.fix(node->heapIndex);
             shedHeap.fix(node->shedIndex);
@@ -798,6 +804,43 @@ class ControlRoom   {
                 }
 
                 removeFromBoard(t);
+            }
+
+            /*PART C--> raises the incident by one level using its id (O(1) lookup)
+            and then its remembered positions to fix both heaps (O(log n)).
+            in dispatch heap it floats up, in shed heap it sinks down (because it
+            became more important), fix() decides the direction by itself*/
+            void escalate(int incidentID)   {
+                Incident* node = findOnBoard(incidentID);
+                if (node == nullptr)    {
+                    std::cout << "ERROR [IncidentNotFound]: No incident with ID " << incidentID
+                    << " on the board." << std::endl;
+                    return;
+                }
+                if (node->effectiveSeverity() >= 5) {
+                    std::cout << "ERROR [AlreadyCritical]: Incident " << incidentID
+                    << " is already at severity 5." << std::endl;
+                    return;
+                }
+
+                node->escalations++;
+                fixBothHeaps(node);
+                std::cout << "Incident " << incidentID << " escalated to severity "
+                << node->effectiveSeverity() << "." << std::endl;
+            }
+
+            // PART C-> removes any waiting incident, not only the top one
+            void cancel(int incidentID) {
+                Incident* node = findOnBoard(incidentID);
+                if (node == nullptr)    {
+                    std::cout << "ERROR [IncidentNotFound]: No incident with ID " << incidentID
+                    << " on the board." << std::endl;
+                    return;
+                }
+
+                removeFromBoard(node);
+                cancelled++;
+                std::cout << "Incident " << incidentID << " cancelled." << std::endl;
             }
 
     public:
