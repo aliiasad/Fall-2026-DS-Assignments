@@ -755,6 +755,51 @@ class ControlRoom   {
             std::cout << "Incident " << incidentID << " accepted." << std::endl;
             }
 
+            /*PART B: handles the single most urgent incident. board is checked
+            first, then units. In both outcomes (sent or missed) the incident
+            leaves the board, only the unit differs*/
+
+            void dispatch(int now)  {
+                if (dispatchHeap.isEmpty()) {
+                    std::cout << "ERROR [NoIncident] : The board is empty. Nothing to dispatch."
+                    << std::endl;
+                    return;
+                }
+                
+                if (unitHeap.isEmpty())   {
+                    std::cout << "ERROR [NoUnit] : No Ambulance Unit available to dispatch."
+                    << std::endl;
+                    return;
+                }
+
+                // if ambulance is available and some id also exists on board, then we
+                // shall dispatch
+                Incident* t = dispatchHeap.top();
+                Unit* u = unitHeap.top();
+
+                // unit cannot leave before it is free
+                int start = (now > u->freeAt) ? now : u->freeAt;
+                int eta = start + t->travel;
+
+                if (eta <= t->dueTime)  {
+                    std::cout << "Dispatched: Unit " << u->unitID << " -> Incident " << t->incidentID
+                    << " (ETA " << eta << ", due " << t->dueTime << ")." << std::endl;
+
+                    // unit has to come back too, its freeAt only grows so it may sink in unit heap
+                    u->freeAt = start + 2 * t->travel;
+                    unitHeap.fix(u->heapIndex);
+                    dispatched++;
+                }
+                else {
+                    std::cout << "ERROR [DeadlineMissed]: Incident " << t->incidentID
+                    << " cannot be reached by due time " << t->dueTime << " (best ETA " << eta
+                    << " by Unit " << u->unitID << ")." << std::endl;
+                    missed++;      // unit stays unchanged
+                }
+
+                removeFromBoard(t);
+            }
+
     public:
 };
 
