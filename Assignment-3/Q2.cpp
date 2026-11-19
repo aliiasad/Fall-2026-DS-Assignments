@@ -843,6 +843,58 @@ class ControlRoom   {
                 std::cout << "Incident " << incidentID << " cancelled." << std::endl;
             }
 
+            void ageAll(int now)    {
+                int changedID[1000];
+                int changedSeverity[1000];
+                int changed = 0;
+
+                for (int id = 1; id < 1000; id++)   {
+                    Incident* node = byID[id];
+                    if (node == nullptr)
+                        continue;
+
+                    int target = (now - node->arrivalTime) / 30;
+                    if (target > 5 - node->severity)
+                        target = 5 - node->severity;
+
+                    if (target > node->escalations) {
+                        node->escalations = target;
+                        fixBothHeaps(node);
+
+                        changedID[changed] = id;
+                        changedSeverity[changed] = node->effectiveSeverity();
+                        changed++;
+                    }
+                }
+
+                std::cout << "Aged to time " << now << ": " << changed << " incident(s) escalated";
+                if (changed > 0)    {
+                    std::cout << " (";
+                    for (int i = 0; i < changed; i++)   {
+                        if (i > 0)
+                            std::cout << ", ";
+                        std::cout << changedID[i] << " -> S" << changedSeverity[i];
+                    }
+                    std::cout << ")";
+                }
+                std::cout << "." << std::endl;
+            }
+
+            // prints the dispatch heap (array order, then level by level)
+            void printHeap()    {
+                dispatchHeap.print();
+            }
+
+            // extra print functions so every class shows all of its items
+            void printShedHeap()    {
+                std::cout << "Shed ";
+                shedHeap.print();
+            }
+
+            void printUnits()   {
+                unitHeap.print();
+            }
+
     public:
 };
 
