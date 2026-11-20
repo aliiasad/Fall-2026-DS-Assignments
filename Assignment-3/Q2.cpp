@@ -29,7 +29,7 @@ class ControlRoom   {
                 // def. and para. constructors (all inits are based on spec's directions)
                 Incident() : incidentID(0), severity(1), arrivalTime(0), dueTime(1),
                 travel(0), escalations(0), heapIndex(-1), shedIndex(-1) {}
-                
+
                 Incident(int id, int sev, int arrival, int due, int trv) :
                 incidentID(id), severity(sev), arrivalTime(arrival), dueTime(due),
                 travel(trv), escalations(0), heapIndex(-1), shedIndex(-1) {}
@@ -369,7 +369,7 @@ class ControlRoom   {
                 // def. and para. constructors
                 Unit() : unitID(0), freeAt(0), heapIndex(-1) {}
 
-                Unit(int id, int free) : unitID(id), freeAt(free) {}
+                Unit(int id, int free) : unitID(id), freeAt(free), heapIndex(-1) {}
 
                 // earliest free unit wins, tie -> smaller unit id wins
                 // did static so it can be used outside this class (same as above)
@@ -614,6 +614,7 @@ class ControlRoom   {
                     std::cout << std::endl;
                 }
         };
+
         int capacity;
         int maxUnits;
 
@@ -628,10 +629,14 @@ class ControlRoom   {
         int cancelled;
         int rejected;
 
-        Incident* byID[1000];
         /*ids are from 1 to 999, so the incident is found from its id directly
         in O(1) with an array of node pointers indexed by id. nullptr means the
         incident is not on the board. We never search the heap array for an id*/
+        Incident* byID[1000];
+
+        /*used remembers that an id was accepted once (even if the incident was
+        dispatched, shed, missed or cancelled later), because a reused id is an
+        error. A BoardFull rejection never sets it, so that id stays free*/
         bool used[1000];
 
         // private helpers to add and remove
@@ -642,9 +647,13 @@ class ControlRoom   {
             byID[node->incidentID] = node;
         }
         
+        /*the node leaves both heaps using the positions it remembers (O(log n)
+        each). NOT dequeue, dequeue only takes out the top of a heap, but the
+        incident to remove can be anywhere (cancel, shed). whatever has to be
+        printed about the node must be printed BEFORE calling this*/
         void removeFromBoard(Incident* node)    {
-            dispatchHeap.dequeue(node);
-            shedHeap.dequeue(node);
+            dispatchHeap.removeAt(node->heapIndex);
+            shedHeap.removeAt(node->shedIndex);
             byID[node->incidentID] = nullptr;
             delete node;
         }
@@ -660,6 +669,7 @@ class ControlRoom   {
             shedHeap.fix(node->shedIndex);
         }
 
+    public:
         // para. constructor
         ControlRoom(int capacity, int maxUnits) :
         capacity(capacity > 0 ? capacity : 1), maxUnits(maxUnits > 0 ? maxUnits : 0),
@@ -672,9 +682,9 @@ class ControlRoom   {
             }
         }
 
-        // // a control room owns raw memory, so it must not be copied
-        // ControlRoom(const ControlRoom&) = delete;
-        // ControlRoom& operator=(const ControlRoom&) = delete;
+        // a control room owns raw memory, so it must not be copied
+        ControlRoom(const ControlRoom&) = delete;
+        ControlRoom& operator=(const ControlRoom&) = delete;
 
         /*PART A + PART D: validates in the exact order of the spec, and
         then either inserts, sheds the least urgent one to make room, or
@@ -684,39 +694,40 @@ class ControlRoom   {
         void reportIncident(int incidentID, int severity, int arrivalTime, int dueTime,
         int travel)   {
             if (incidentID > 999 || incidentID < 1) {
-                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
-                "is outside the bounds 1 to 999." << std::endl;
+                std::cout << "ERROR [InvalidIncident]: Incident ID " << incidentID <<
+                " is outside 1 to 999." << std::endl;
                 return;
             }
 
             if (used[incidentID])   {
-                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
-                " already exists." << std::endl;
+                std::cout << "ERROR [InvalidIncident]: ID " << incidentID <<
+                " is already used." << std::endl;
                 return;
             }
             
             if (severity > 5 || severity < 1)   {
-                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
-                " has severity " << severity << "(must  be 1 to 5)" << std:: endl;
+                std::cout << "ERROR [InvalidIncident]: Incident " << incidentID <<
+                " has severity " << severity << " (must be 1 to 5)." << std::endl;
                 return;
             }
 
             if (arrivalTime < 0)    {
-                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
-                " has an arrival time less than 0 (must be greater than zero)." << std::endl;
+                std::cout << "ERROR [InvalidIncident]: Incident " << incidentID <<
+                " has arrival time " << arrivalTime << " (must be 0 or more)." << std::endl;
                 return;
             }
 
-            if (dueTime < arrivalTime)  {
-                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID << 
-                " has due time " << dueTime << ", which is not after arrival time" << arrivalTime
+            // due time must be AFTER arrival time, so equal is also an error
+            if (dueTime <= arrivalTime)  {
+                std::cout << "ERROR [InvalidIncident]: Incident " << incidentID << 
+                " has due time " << dueTime << ", which is not after arrival time " << arrivalTime
                 << "." << std::endl;
                 return;
             }
 
             if (travel <= 0)    {
-                std::cout << "ERROR [InvalidIncident] : IncidentID " << incidentID <<
-                " has a travel time " << travel << "which is less than 0." << std::endl;
+                std::cout << "ERROR [InvalidIncident]: Incident " << incidentID <<
+                " has travel time " << travel << " (must be more than 0)." << std::endl;
                 return; 
             }
 
@@ -759,167 +770,177 @@ class ControlRoom   {
             addToBoard(newIncident);
             used[incidentID] = true;
             std::cout << "Incident " << incidentID << " accepted." << std::endl;
+        }
+
+        /*PART B: validation order is id positive, already exists, negative
+        free time, pool full*/
+        void addUnit(int unitID, int freeAt)    {
+            if (unitID <= 0)    {
+                std::cout << "ERROR [InvalidUnit]: Unit ID must be positive." << std::endl;
+                return;
             }
 
-            /*PART B: handles the single most urgent incident. board is checked
-            first, then units. In both outcomes (sent or missed) the incident
-            leaves the board, only the unit differs*/
-
-            void dispatch(int now)  {
-                if (dispatchHeap.isEmpty()) {
-                    std::cout << "ERROR [NoIncident] : The board is empty. Nothing to dispatch."
-                    << std::endl;
-                    return;
-                }
-                
-                if (unitHeap.isEmpty())   {
-                    std::cout << "ERROR [NoUnit] : No Ambulance Unit available to dispatch."
-                    << std::endl;
-                    return;
-                }
-
-                // if ambulance is available and some id also exists on board, then we
-                // shall dispatch
-                Incident* t = dispatchHeap.top();
-                Unit* u = unitHeap.top();
-
-                // unit cannot leave before it is free
-                int start = (now > u->freeAt) ? now : u->freeAt;
-                int eta = start + t->travel;
-
-                if (eta <= t->dueTime)  {
-                    std::cout << "Dispatched: Unit " << u->unitID << " -> Incident " << t->incidentID
-                    << " (ETA " << eta << ", due " << t->dueTime << ")." << std::endl;
-
-                    // unit has to come back too, its freeAt only grows so it may sink in unit heap
-                    u->freeAt = start + 2 * t->travel;
-                    unitHeap.fix(u->heapIndex);
-                    dispatched++;
-                }
-                else {
-                    std::cout << "ERROR [DeadlineMissed]: Incident " << t->incidentID
-                    << " cannot be reached by due time " << t->dueTime << " (best ETA " << eta
-                    << " by Unit " << u->unitID << ")." << std::endl;
-                    missed++;      // unit stays unchanged
-                }
-
-                removeFromBoard(t);
+            if (unitHeap.exists(unitID))    {
+                std::cout << "ERROR [InvalidUnit]: Unit " << unitID << " already exists." << std::endl;
+                return;
             }
 
-            void addUnit(int unitID, int freeAt)    {
-                if (unitID <= 0)    {
-                    std::cout << "ERROR [InvalidUnit]: Unit ID must be positive." << std::endl;
-                    return;
-                }
-                if (unitHeap.exists(unitID))    {
-                    std::cout << "ERROR [InvalidUnit]: Unit " << unitID << " already exists." << std::endl;
-                    return;
-                }
-                if (freeAt < 0) {
-                    std::cout << "ERROR [InvalidUnit]: Unit " << unitID << " has free-at time "
-                    << freeAt << " (must be 0 or more)." << std::endl;
-                    return;
-                }
-                if (unitHeap.isFull())  {
-                    std::cout << "ERROR [InvalidUnit]: Unit pool is full (maximum " << maxUnits
-                    << " units)." << std::endl;
-                    return;
-                }
-
-                unitHeap.enqueue(new Unit(unitID, freeAt));
-                std::cout << "Unit " << unitID << " added (free at " << freeAt << ")." << std::endl;
+            if (freeAt < 0) {
+                std::cout << "ERROR [InvalidUnit]: Unit " << unitID << " has free-at time "
+                << freeAt << " (must be 0 or more)." << std::endl;
+                return;
             }
 
-            /*PART C--> raises the incident by one level using its id (O(1) lookup)
-            and then its remembered positions to fix both heaps (O(log n)).
-            in dispatch heap it floats up, in shed heap it sinks down (because it
-            became more important), fix() decides the direction by itself*/
-            void escalate(int incidentID)   {
-                Incident* node = findOnBoard(incidentID);
-                if (node == nullptr)    {
-                    std::cout << "ERROR [IncidentNotFound]: No incident with ID " << incidentID
-                    << " on the board." << std::endl;
-                    return;
+            if (unitHeap.isFull())  {
+                std::cout << "ERROR [InvalidUnit]: Unit pool is full (maximum " << maxUnits
+                << " units)." << std::endl;
+                return;
+            }
+
+            unitHeap.enqueue(new Unit(unitID, freeAt));
+            std::cout << "Unit " << unitID << " added (free at " << freeAt << ")." << std::endl;
+        }
+
+        /*PART B: handles the single most urgent incident. board is checked
+        first, then units. In both outcomes (sent or missed) the incident
+        leaves the board, only the unit differs*/
+
+        void dispatch(int now)  {
+            if (dispatchHeap.isEmpty()) {
+                std::cout << "ERROR [NoIncident]: The board is empty; nothing to dispatch."
+                << std::endl;
+                return;
+            }
+            
+            if (unitHeap.isEmpty())   {
+                std::cout << "ERROR [NoUnit]: No ambulance units available."
+                << std::endl;
+                return;
+            }
+
+            // if ambulance is available and some id also exists on board, then we
+            // shall dispatch
+            Incident* t = dispatchHeap.top();
+            Unit* u = unitHeap.top();
+
+            // unit cannot leave before it is free
+            int start = (now > u->freeAt) ? now : u->freeAt;
+            int eta = start + t->travel;
+
+            if (eta <= t->dueTime)  {
+                std::cout << "Dispatched: Unit " << u->unitID << " -> Incident " << t->incidentID
+                << " (ETA " << eta << ", due " << t->dueTime << ")." << std::endl;
+
+                // unit has to come back too, its freeAt only grows so it may sink in unit heap
+                u->freeAt = start + 2 * t->travel;
+                unitHeap.fix(u->heapIndex);
+                dispatched++;
+            }
+            else {
+                std::cout << "ERROR [DeadlineMissed]: Incident " << t->incidentID
+                << " cannot be reached by due time " << t->dueTime << " (best ETA " << eta
+                << " by Unit " << u->unitID << ")." << std::endl;
+                missed++;      // unit stays unchanged
+            }
+
+            removeFromBoard(t);
+        }
+
+        /*PART C--> raises the incident by one level using its id (O(1) lookup)
+        and then its remembered positions to fix both heaps (O(log n)).
+        in dispatch heap it floats up, in shed heap it sinks down (because it
+        became more important), fix() decides the direction by itself*/
+        void escalate(int incidentID)   {
+            Incident* node = findOnBoard(incidentID);
+            if (node == nullptr)    {
+                std::cout << "ERROR [IncidentNotFound]: No incident with ID " << incidentID
+                << " on the board." << std::endl;
+                return;
+            }
+            if (node->effectiveSeverity() >= 5) {
+                std::cout << "ERROR [AlreadyCritical]: Incident " << incidentID
+                << " is already at severity 5." << std::endl;
+                return;
+            }
+
+            node->escalations++;
+            fixBothHeaps(node);
+            std::cout << "Incident " << incidentID << " escalated to severity "
+            << node->effectiveSeverity() << "." << std::endl;
+        }
+
+        // PART C-> removes any waiting incident, not only the top one
+        void cancel(int incidentID) {
+            Incident* node = findOnBoard(incidentID);
+            if (node == nullptr)    {
+                std::cout << "ERROR [IncidentNotFound]: No incident with ID " << incidentID
+                << " on the board." << std::endl;
+                return;
+            }
+
+            removeFromBoard(node);
+            cancelled++;
+            std::cout << "Incident " << incidentID << " cancelled." << std::endl;
+        }
+
+        /*PART C--> the one place where scanning every incident is allowed. ids are
+        visited in increasing order (1 to 999), byID skips the ones not on board.
+        each escalated incident is fixed in BOTH heaps immediately, before the next
+        one is visited. aging never lowers anything (only escalate if target >
+        escalations). the changed ones are remembered for the summary line*/
+        void ageAll(int now)    {
+            int changedID[1000];
+            int changedSeverity[1000];
+            int changed = 0;
+
+            for (int id = 1; id < 1000; id++)   {
+                Incident* node = byID[id];
+                if (node == nullptr)
+                    continue;
+
+                int target = (now - node->arrivalTime) / 30;
+                if (target > 5 - node->severity)
+                    target = 5 - node->severity;
+
+                if (target > node->escalations) {
+                    node->escalations = target;
+                    fixBothHeaps(node);
+
+                    changedID[changed] = id;
+                    changedSeverity[changed] = node->effectiveSeverity();
+                    changed++;
                 }
-                if (node->effectiveSeverity() >= 5) {
-                    std::cout << "ERROR [AlreadyCritical]: Incident " << incidentID
-                    << " is already at severity 5." << std::endl;
-                    return;
+            }
+
+            std::cout << "Aged to time " << now << ": " << changed << " incident(s) escalated";
+            if (changed > 0)    {
+                std::cout << " (";
+                for (int i = 0; i < changed; i++)   {
+                    if (i > 0)
+                        std::cout << ", ";
+                    std::cout << changedID[i] << " -> S" << changedSeverity[i];
                 }
-
-                node->escalations++;
-                fixBothHeaps(node);
-                std::cout << "Incident " << incidentID << " escalated to severity "
-                << node->effectiveSeverity() << "." << std::endl;
+                std::cout << ")";
             }
+            std::cout << "." << std::endl;
+        }
 
-            // PART C-> removes any waiting incident, not only the top one
-            void cancel(int incidentID) {
-                Incident* node = findOnBoard(incidentID);
-                if (node == nullptr)    {
-                    std::cout << "ERROR [IncidentNotFound]: No incident with ID " << incidentID
-                    << " on the board." << std::endl;
-                    return;
-                }
+        // prints the dispatch heap (array order, then level by level)
+        void printHeap()    {
+            dispatchHeap.print();
+        }
 
-                removeFromBoard(node);
-                cancelled++;
-                std::cout << "Incident " << incidentID << " cancelled." << std::endl;
-            }
+        // extra print functions so every class shows all of its items
+        void printShedHeap()    {
+            std::cout << "Shed ";
+            shedHeap.print();
+        }
 
-            void ageAll(int now)    {
-                int changedID[1000];
-                int changedSeverity[1000];
-                int changed = 0;
+        void printUnits()   {
+            unitHeap.print();
+        }
 
-                for (int id = 1; id < 1000; id++)   {
-                    Incident* node = byID[id];
-                    if (node == nullptr)
-                        continue;
-
-                    int target = (now - node->arrivalTime) / 30;
-                    if (target > 5 - node->severity)
-                        target = 5 - node->severity;
-
-                    if (target > node->escalations) {
-                        node->escalations = target;
-                        fixBothHeaps(node);
-
-                        changedID[changed] = id;
-                        changedSeverity[changed] = node->effectiveSeverity();
-                        changed++;
-                    }
-                }
-
-                std::cout << "Aged to time " << now << ": " << changed << " incident(s) escalated";
-                if (changed > 0)    {
-                    std::cout << " (";
-                    for (int i = 0; i < changed; i++)   {
-                        if (i > 0)
-                            std::cout << ", ";
-                        std::cout << changedID[i] << " -> S" << changedSeverity[i];
-                    }
-                    std::cout << ")";
-                }
-                std::cout << "." << std::endl;
-            }
-
-            // prints the dispatch heap (array order, then level by level)
-            void printHeap()    {
-                dispatchHeap.print();
-            }
-
-            // extra print functions so every class shows all of its items
-            void printShedHeap()    {
-                std::cout << "Shed ";
-                shedHeap.print();
-            }
-
-            void printUnits()   {
-                unitHeap.print();
-            }
-
-            /*PART E: board, most/least urgent, units (in the order they would be
+        /*PART E: board, most/least urgent, units (in the order they would be
         chosen, from a copy) and the counters*/
         void showStatus()   {
             std::cout << "===== STATUS =====" << std::endl;
@@ -965,7 +986,7 @@ class ControlRoom   {
 
     private:
 
-    // prints like: 105 (S1, due 90), or none for an empty board
+        // prints like: 105 (S1, due 90), or none for an empty board
         void printSummary(Incident* node)   {
             if (node == nullptr)    {
                 std::cout << "none";
@@ -976,6 +997,100 @@ class ControlRoom   {
         }
 };
 
+void loadPartA(ControlRoom& room)   {
+    room.reportIncident(101, 3, 0, 40, 8);
+    room.reportIncident(102, 5, 5, 25, 8);
+    room.reportIncident(103, 3, 10, 30, 6);
+    room.reportIncident(104, 3, 12, 30, 9);
+    room.reportIncident(105, 1, 15, 90, 20);
+}
+
+// THE MAIN IS DESIGNED TO REPLICATE THE SPEC'S EXAMPLE (TOOK ME 3 DAYS TO DO THIS Q ONLY)
+
 int main()  {
+    std::cout << "Part A: reporting" << std::endl;
+    ControlRoom room(5, 2);
+    loadPartA(room);
+    room.reportIncident(106, 7, 20, 50, 5);
+    room.reportIncident(102, 2, 20, 50, 5);
+    room.reportIncident(107, 2, 20, 20, 5);
+    room.reportIncident(1000, 2, 20, 50, 5);
+    room.reportIncident(108, 2, -1, 50, 5);
+    room.reportIncident(109, 2, 20, 50, 0);
+    std::cout << "printHeap():" << std::endl;
+    room.printHeap();
+
+    std::cout << std::endl << "Part B: units and dispatch" << std::endl;
+    room.addUnit(1, 0);
+    room.addUnit(2, 18);
+    room.addUnit(1, 5);
+    room.addUnit(0, 5);
+    room.addUnit(3, -4);
+    room.addUnit(3, 5);
+    room.dispatch(15);
+    room.dispatch(20);
+    room.dispatch(24);
+    room.dispatch(24);
+    std::cout << "showStatus():" << std::endl;
+    room.showStatus();
+
+    std::cout << std::endl << "Part C: escalate" << std::endl;
+    ControlRoom roomEscalate(5, 2);
+    loadPartA(roomEscalate);
+    roomEscalate.escalate(101);
+    std::cout << "printHeap():" << std::endl;
+    roomEscalate.printHeap();
+    roomEscalate.escalate(102);
+    roomEscalate.escalate(999);
+
+    std::cout << std::endl << "Part C: aging" << std::endl;
+    ControlRoom roomAge(5, 2);
+    loadPartA(roomAge);
+    roomAge.ageAll(40);
+    std::cout << "printHeap():" << std::endl;
+    roomAge.printHeap();
+
+    std::cout << std::endl << "Part C: cancel" << std::endl;
+    ControlRoom roomCancel(10, 2);
+    roomCancel.reportIncident(201, 3, 0, 10, 5);
+    roomCancel.reportIncident(202, 3, 0, 30, 5);
+    roomCancel.reportIncident(203, 3, 0, 20, 5);
+    roomCancel.reportIncident(204, 3, 0, 40, 5);
+    roomCancel.reportIncident(205, 3, 0, 50, 5);
+    roomCancel.reportIncident(206, 3, 0, 25, 5);
+    roomCancel.reportIncident(207, 3, 0, 22, 5);
+    std::cout << "printHeap():" << std::endl;
+    roomCancel.printHeap();
+    roomCancel.cancel(204);
+    roomCancel.printHeap();
+    roomCancel.cancel(201);
+    roomCancel.printHeap();
+
+    std::cout << std::endl << "Part D: capacity and shedding" << std::endl;
+    ControlRoom roomShed(3, 2);
+    roomShed.reportIncident(301, 3, 0, 50, 5);
+    roomShed.reportIncident(302, 2, 2, 60, 5);
+    roomShed.reportIncident(303, 4, 4, 40, 5);
+    roomShed.reportIncident(304, 5, 6, 30, 5);
+    roomShed.reportIncident(305, 1, 8, 90, 5);
+    roomShed.reportIncident(306, 3, 10, 45, 5);
+    std::cout << "printHeap():" << std::endl;
+    roomShed.printHeap();
+    roomShed.printShedHeap();
+    std::cout << "showStatus():" << std::endl;
+    roomShed.showStatus();
+
+    std::cout << std::endl << "Part E: errors and status" << std::endl;
+    ControlRoom roomError(4, 1);
+    roomError.cancel(555);
+    roomError.dispatch(5);
+    roomError.reportIncident(401, 3, 0, 50, 5);
+    roomError.dispatch(5);
+    roomError.cancel(401);
+    roomError.cancel(401);
+    roomError.escalate(401);
+    std::cout << "showStatus():" << std::endl;
+    roomError.showStatus();
+
     return 0;
 }
