@@ -806,6 +806,30 @@ class ControlRoom   {
                 removeFromBoard(t);
             }
 
+            void addUnit(int unitID, int freeAt)    {
+                if (unitID <= 0)    {
+                    std::cout << "ERROR [InvalidUnit]: Unit ID must be positive." << std::endl;
+                    return;
+                }
+                if (unitHeap.exists(unitID))    {
+                    std::cout << "ERROR [InvalidUnit]: Unit " << unitID << " already exists." << std::endl;
+                    return;
+                }
+                if (freeAt < 0) {
+                    std::cout << "ERROR [InvalidUnit]: Unit " << unitID << " has free-at time "
+                    << freeAt << " (must be 0 or more)." << std::endl;
+                    return;
+                }
+                if (unitHeap.isFull())  {
+                    std::cout << "ERROR [InvalidUnit]: Unit pool is full (maximum " << maxUnits
+                    << " units)." << std::endl;
+                    return;
+                }
+
+                unitHeap.enqueue(new Unit(unitID, freeAt));
+                std::cout << "Unit " << unitID << " added (free at " << freeAt << ")." << std::endl;
+            }
+
             /*PART C--> raises the incident by one level using its id (O(1) lookup)
             and then its remembered positions to fix both heaps (O(log n)).
             in dispatch heap it floats up, in shed heap it sinks down (because it
@@ -895,7 +919,61 @@ class ControlRoom   {
                 unitHeap.print();
             }
 
-    public:
+            /*PART E: board, most/least urgent, units (in the order they would be
+        chosen, from a copy) and the counters*/
+        void showStatus()   {
+            std::cout << "===== STATUS =====" << std::endl;
+
+            std::cout << "Board (" << dispatchHeap.getSize() << "/" << capacity << "): ";
+            dispatchHeap.printArrayOrder();
+            std::cout << std::endl;
+
+            std::cout << "Most urgent: ";
+            printSummary(dispatchHeap.top());
+            std::cout << " | Least urgent: ";
+            printSummary(shedHeap.top());
+            std::cout << std::endl;
+
+            std::cout << "Units (earliest free first): ";
+            unitHeap.printSorted();
+            std::cout << std::endl;
+
+            std::cout << "Dispatched: " << dispatched << " | Missed: " << missed
+            << " | Shed: " << shed << " | Cancelled: " << cancelled
+            << " | Rejected: " << rejected << std::endl;
+        }
+
+        /*every node in the heaps is freed here. the incident heaps only
+        free their pointer arrays, so the incidents still on the board are
+        deleted through byID (every live incident is in it exactly once). the
+        unit heap frees its own units in its own destructor*/
+        ~ControlRoom() {
+            for (int id = 1; id < 1000; id++)   {
+                if (byID[id] != nullptr)    {
+                    delete byID[id];
+                    byID[id] = nullptr;
+                }
+            }
+        }
+
+        // (required helpers which access private data that cannot be
+        // sent by the main())
+        // Incident* findOnBoard(int incidentID);
+        // void printSummary(Incident* node);
+        // keep the prototypes commented out.. cpp doesnt allow prototyes in classes
+        // if the actual func is also implemented inside class
+
+    private:
+
+    // prints like: 105 (S1, due 90), or none for an empty board
+        void printSummary(Incident* node)   {
+            if (node == nullptr)    {
+                std::cout << "none";
+                return;
+            }
+            std::cout << node->incidentID << " (S" << node->effectiveSeverity()
+            << ", due " << node->dueTime << ")";
+        }
 };
 
 int main()  {
